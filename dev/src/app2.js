@@ -30,7 +30,8 @@ function regionTip(id) {
   const status = here.status ? ` <span class="pill st-${here.status}">${STATUSES[here.status]}</span>` : "";
   const marks = Object.values(here.marks);
   const note = S.notes[id]?.public;
-  return `<h4>${esc(r.name)}</h4><div class="sub">${esc(r.kind === "chapter" ? "Chapter · " + r.band : r.band)}${status}</div><div>${esc(note || r.blurb)}</div><div class="pres">${presenceList(st, id)}${marks.map(m => `<div style="display:flex;gap:6px;align-items:center">${pinSwatch(m, 14)}<span>${esc(markName(m))}</span></div>`).join("")}</div>${here.note ? `<div class="muted small" style="margin-top:6px">${esc(here.note)}</div>` : ""}<div class="muted small" style="margin-top:6px">Click for the record. Double-click to zoom into the region.</div>`;
+  const danger = r.kind === "chapter" ? " " + dangerPill(dangerOf(st, id)) : "";
+  return `<h4>${esc(r.name)}</h4><div class="sub">${esc(r.kind === "chapter" ? "Chapter · " + r.band : r.band)}${status}${danger}</div><div>${esc(note || r.blurb)}</div><div class="pres">${presenceList(st, id)}${marks.map(m => `<div style="display:flex;gap:6px;align-items:center">${pinSwatch(m, 14)}<span>${esc(markName(m))}</span></div>`).join("")}</div>${here.note ? `<div class="muted small" style="margin-top:6px">${esc(here.note)}</div>` : ""}<div class="muted small" style="margin-top:6px">Click for the record. Double-click to zoom into the region.</div>`;
 }
 function sinceLine(ev) { return ev ? `<div class="muted small since">Last change: ${esc(ev.title || "Untitled event")}${ev.when ? " · " + esc(ev.when) : ""}</div>` : ""; }
 function tokenTip(evil, id, site) {
@@ -420,16 +421,41 @@ function renderLegend() {
     `<div class="row">${pinSwatch({ icon: "star" }, 15)} Pinpoint</div>` +
     `<div class="row"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><defs><pattern id="lg-siege" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--bad)" fill-opacity=".15"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--bad)" stroke-width="2"/></pattern></defs><rect x="1" y="1" width="14" height="14" rx="2" fill="url(#lg-siege)" stroke="var(--bad)" stroke-width="1.5"/></svg> Besieged</div>` +
     `<div class="row"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" class="blackout"/></svg> Fallen</div>` +
+    `<div class="row" style="grid-column:1/-1"><span class="dkey">${DANGER.map(x => `<i style="background:${x.color}"></i>`).join("")}</span> Danger: calm to dire</div>` +
     `<div class="row muted" style="grid-column:1/-1">Numbers are Power Scale tiers. Double-click a region to zoom in.</div>`;
 }
 
 /* ---------- Side panel ---------- */
 function renderSide() {
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)));
-  ["threats", "region", "log"].forEach(t => $("pane-" + t).hidden = t !== S.tab);
+  ["threats", "region", "log", "overview"].forEach(t => $("pane-" + t).hidden = t !== S.tab);
   if (S.tab === "threats") renderThreats();
   if (S.tab === "region") renderRegion();
   if (S.tab === "log") renderLog();
+  if (S.tab === "overview") renderOverview();
+}
+/* Events up to the step on screen that touch a region, newest first. */
+function eventsTouching(id) {
+  const upto = S.draft && S.draft.changes.length ? EV.length - 1 : S.idx, out = [];
+  for (let i = upto; i >= 0; i--) {
+    const e = EV[i]; if (!e) continue;
+    if ((e.changes || []).some(c => c.region === id || c.from === id || c.to === id) || e.chapter === id) out.push(i);
+  }
+  return out;
+}
+/* "Right now": one line per chapter, built from what is on the map at this step. */
+function renderOverview() {
+  const st = currentState();
+  const rows = CHAPTERS.map(r => {
+    const here = st[r.id], d = dangerOf(st, r.id);
+    const top = [...EVIL_ORDER.filter(k => here.p[k]).map(k => ({ n: EVILS[k].short, t: here.p[k] })), ...Object.values(here.threats).map(t => ({ n: threatName(t), t: t.tier }))].sort((a, b) => b.t - a.t);
+    const last = eventsTouching(r.id)[0];
+    return { r, d, here, top, last };
+  }).sort((a, b) => b.d.lv - a.d.lv || a.r.name.localeCompare(b.r.name));
+  $("pane-overview").innerHTML = `<div><h3>The Abandoned Lands right now</h3><p class="small muted" style="margin:6px 0 0">Every chapter at this step of the story, most dangerous first. Click one for its full summary.</p></div>
+    <div class="overview">${rows.map(({ r, d, here, top, last }) => `<button type="button" class="ovrow" data-goreg="${r.id}">
+      <span class="ovname">${esc(r.name)}</span>${dangerPill(d)}${here.status ? `<span class="pill st-${here.status}">${STATUSES[here.status]}</span>` : ""}
+      <span class="small muted ovline">${top.length ? esc(top.slice(0, 2).map(x => `${x.n} ${x.t}`).join(" · ")) : "No threats"}${last != null ? ` · Last: ${esc(EV[last].title || "Untitled event")}` : ""}</span></button>`).join("")}</div>`;
 }
 function strength(st, k) { let s = 0, regs = []; for (const id in st) if (st[id].p[k]) { s += st[id].p[k]; regs.push(id); } return { s, regs }; }
 function renderThreats() {
@@ -481,6 +507,7 @@ function renderRegion() {
     <p style="margin:8px 0 0">${esc(r.blurb)}</p></div>
     <div class="btnrow">${inView ? `<button type="button" class="btn primary" data-closereg="1">← Back to the whole map</button>` : `<button type="button" class="btn primary" data-openreg="${r.id}">Zoom into ${esc(r.name)}</button>`}
     ${inView && regionEdit ? `<button type="button" class="btn big" id="site-edit" aria-pressed="${S.siteEdit}">${S.siteEdit ? "Done editing sites" : "Edit sites"}</button>` : ""}</div>`;
+  if (r.kind === "chapter") html += nowBox(r, st, here);
   // Pending new site
   if (S.pendingSite && S.pendingSite.region === r.id && regionEdit) {
     html += `<div class="sitebox"><h5>New site</h5><input id="ps-name" placeholder="Name, e.g. Old Mill ford" aria-label="Site name"><input id="ps-note" placeholder="Short description (optional)" aria-label="Site description"><div class="btnrow"><button type="button" class="btn primary" id="ps-save">Add site</button><button type="button" class="btn big" id="ps-cancel">Cancel</button></div></div>`;
@@ -545,6 +572,27 @@ function renderRegion() {
   }
   html += `<div><h5>History to this step</h5><div class="hist">${hist.length ? hist.join("") : `<span class="muted small">Nothing has happened here yet.</span>`}</div></div>`;
   pane.innerHTML = html;
+}
+
+/* The region's summary: danger, condition and the latest events, all from canon map entries. */
+function nowBox(r, st, here) {
+  const d = dangerOf(st, r.id);
+  const since = here.status ? lastChange(c => c.type === "status" && c.region === r.id) : null;
+  const recent = eventsTouching(r.id).slice(0, 3);
+  const o = S.settings.danger?.[r.id];
+  let html = `<div class="nowbox"><h5>Right now</h5>${dangerGauge(d.lv)}<div><b class="dname" style="color:${DANGER[d.lv].color}">${DANGER[d.lv].name}</b>${d.set ? ` <span class="small muted">set by the NST</span>` : ""}</div>
+    <p style="margin:4px 0 0">${esc(d.feel)}</p>
+    <div class="small muted" style="margin-top:4px">${d.why.length ? "Why: " + esc(d.why.join(" · ")) : "No threats here."}</div>
+    ${here.status ? `<div class="small" style="margin-top:6px"><span class="pill st-${here.status}">${STATUSES[here.status]}</span>${since ? ` since ${esc(since.title || "an untitled event")}${since.when ? " (" + esc(since.when) + ")" : ""}` : ""}</div>` : ""}
+    <div class="lbl" style="margin-top:8px">Latest events</div>${recent.length ? `<div class="hist">${recent.map(i => `<button type="button" data-jump="${i}"><b>${esc(EV[i].title || "Untitled event")}</b>${EV[i].when ? ` <span class="muted">· ${esc(EV[i].when)}</span>` : ""}</button>`).join("")}</div>` : `<div class="small muted">Nothing has happened here yet.</div>`}`;
+  if (isNST()) {
+    html += `<details class="dset"${o ? " open" : ""}><summary>Set the danger level by hand</summary>
+      <label class="lbl" for="dg-level">Level</label><select id="dg-level" class="btn"><option value="">Work it out from the map (${DANGER[d.auto].name})</option>${DANGER.map((x, i) => `<option value="${i}" ${o && +o.level === i ? "selected" : ""}>${x.name}</option>`).join("")}</select>
+      <label class="lbl" for="dg-why">Why (players see this)</label><input id="dg-why" value="${esc(o?.why || "")}" placeholder="e.g. The thorn wall is failing">
+      <label class="lbl" for="dg-feel">What players feel</label><input id="dg-feel" value="${esc(o?.feel || "")}" placeholder="Leave empty for the usual line">
+      <div class="btnrow"><button type="button" class="btn" id="dg-save">Save danger level</button></div></details>`;
+  }
+  return html + `</div>`;
 }
 
 /* ---------- Draft editing ---------- */
@@ -889,6 +937,12 @@ document.addEventListener("click", async e => {
     if ($("mn-show").checked) done.delete(id); else done.add(id);
     await saveSetting("notice", { text: $("mn-text").value.trim(), done: [...done] }, "Notice saved"); return;
   }
+  if (t.id === "dg-save") {
+    const id = S.selected, all = { ...(S.settings.danger || {}) }, v = $("dg-level").value;
+    if (v === "") delete all[id];
+    else { const o = { level: +v }, why = $("dg-why").value.trim(), feel = $("dg-feel").value.trim(); if (why) o.why = why; if (feel) o.feel = feel; all[id] = o; }
+    await saveSetting("danger", all, v === "" ? "Danger level worked out from the map again" : "Danger level saved"); return;
+  }
   if (t.id === "ld-save" || t.id === "ld-reset") {
     const id = S.selected, all = { ...(S.settings.regions || {}) };
     if (t.id === "ld-reset") delete all[id];
@@ -1007,7 +1061,7 @@ function refreshAll(fresh) {
   renderMap({ fresh: !!fresh }); renderChrome();
 }
 function setSettings(o) {
-  S.settings = { notice: o.notice || { text: NOTICE_TEXT, done: [] }, regions: o.regions || {} };
+  S.settings = { notice: o.notice || { text: NOTICE_TEXT, done: [] }, regions: o.regions || {}, danger: o.danger || {} };
   applyRegionInfo();
 }
 function applyData(d, first) {

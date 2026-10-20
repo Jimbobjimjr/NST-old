@@ -163,7 +163,7 @@ const S = {
   tab: "threats", downloads: null,
   positions: {}, layoutMode: false, draft: null, playing: false, confirmDel: null,
   vb: { x: 0, y: 0, w: W, h: H },
-  settings: { notice: { text: NOTICE_TEXT, done: [] }, regions: {} }, placing: null,
+  settings: { notice: { text: NOTICE_TEXT, done: [] }, regions: {}, danger: {} }, placing: null,
 };
 const Store = { mode: "local", me: { role: "viewer", name: "", chapters: [] } };
 try { const l = localStorage.getItem("alwm.layer"); if (l && VIS_RANK[l] !== undefined) S.layer = l; } catch (e) {}
@@ -317,6 +317,41 @@ function lastChange(test) {
   if (S.draft && S.draft.changes.some(test)) return { title: S.draft.title || "your draft", when: "" };
   for (let i = upto; i >= 0; i--) if (EV[i] && (EV[i].changes || []).some(test)) return EV[i];
   return null;
+}
+
+/* Danger: worked out from the threats and the condition at the step on screen. The NST can set a region's level by hand. */
+const DANGER = [
+  { name: "Calm", color: "var(--ok)", feel: "Roads are open and markets are busy. People sleep easy." },
+  { name: "Uneasy", color: "var(--uneasy)", feel: "Odd tales on the roads. Travellers keep together and watch the treeline." },
+  { name: "Dangerous", color: "var(--warn)", feel: "Travel needs an escort. Prices are rising and outlying farms are emptying." },
+  { name: "Perilous", color: "var(--peril)", feel: "Travel is unsafe after dark. Supplies run short and the wardens are calling for help." },
+  { name: "Dire", color: "var(--bad)", feel: "The region is fighting to survive. Few roads in or out are safe." },
+];
+function dangerOf(st, id) {
+  const here = st[id], why = [];
+  let top = 0;
+  for (const k of EVIL_ORDER) if (here.p[k]) { top = Math.max(top, here.p[k]); why.push(`${EVILS[k].short} at tier ${here.p[k]}`); }
+  for (const t of Object.values(here.threats)) { top = Math.max(top, t.tier); why.push(`${threatName(t)} at tier ${t.tier}`); }
+  let lv = Math.min(4, top);
+  if (why.length >= 3 && lv < 4) { lv++; why.push(`${why.length} threats at once`); }
+  if (here.status === "threatened") { lv = Math.max(lv, 1); why.push("region threatened"); }
+  if (here.status === "besieged") { lv = Math.min(4, Math.max(lv + 1, 2)); why.push("region besieged"); }
+  if (here.status === "fallen") { lv = 4; why.push("region fallen"); }
+  if (here.status === "liberated" && lv > 0) { lv--; why.push("recently liberated"); }
+  // A level set by the NST describes the story now, so it only applies at the latest step.
+  const o = S.settings.danger?.[id], latest = !(S.draft && S.draft.changes.length) && S.idx >= EV.length - 1;
+  if (o && DANGER[o.level] && latest) return { lv: +o.level, why: [o.why || "Set by the NST"], feel: o.feel || DANGER[o.level].feel, set: true, auto: lv };
+  return { lv, why, feel: DANGER[lv].feel, set: false, auto: lv };
+}
+const dangerShown = () => $("ly-danger").checked;
+function dangerPill(d) { return `<span class="pill danger" style="--dc:${DANGER[d.lv].color}">${DANGER[d.lv].name}</span>`; }
+function dangerGauge(lv) { return `<div class="dgauge" aria-hidden="true">${DANGER.map((x, i) => `<span style="background:${x.color};opacity:${i <= lv ? 1 : .2}"></span>`).join("")}</div>`; }
+function paintDanger(st) {
+  G.cities.querySelectorAll(".citygrp").forEach(g => {
+    const ring = g.querySelector(".city-ring"); if (!ring) return;
+    if (dangerShown()) { const d = dangerOf(st, g.dataset.region); ring.style.stroke = DANGER[d.lv].color; ring.classList.add("dz"); }
+    else { ring.style.stroke = ""; ring.classList.remove("dz"); }
+  });
 }
 
 /* ---------- Map geometry, traced from Shani Downing's map of the Abandoned Lands ---------- */
@@ -476,6 +511,7 @@ function drawCities() {
 }
 function drawOverlays(opts = {}) {
   const st = currentState();
+  paintDanger(st);
   const ev = currentEvent();
   const prev = prevForView();
   const fresh = opts.fresh !== false;

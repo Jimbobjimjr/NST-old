@@ -37,7 +37,7 @@ One row per person in the **Reps** tab:
 
 - `story` can sign in to see story-team events and notes, and add details to places on their chapters' region maps. They can't change the story.
 - `rep` can record events for their chapters, place threats, pinpoints and sites in their region, and write their region's notes. They see everything, including NST-only events.
-- `nst` can do everything a rep can in every chapter, plus tier 4 and 5 appearances, Lesser Evils past tier 3, national events, reordering the story, arranging the main map and the "being updated" notice on region maps.
+- `nst` can do everything a rep can in every chapter, plus tier 4 and 5 appearances, Lesser Evils past tier 3, national events, reordering the story, arranging the main map and the "being updated" notice on region maps, and setting a region's danger level by hand.
 - `lead` is the NST lead: everything `nst` can do, plus renaming places. That covers regions and fronts on the main map (for example the North Pass) and the places drawn on each region's map. Reps can still name the sites they add themselves.
 - Set `active` to FALSE to switch a code off. Change the code to revoke it.
 
@@ -72,6 +72,8 @@ Reps can sign in from inside the embed too.
 - Zoom with the **+** and **−** buttons, the mouse wheel, or two fingers on a phone. The **full screen** button (the four corners) fills the screen with the map; press it again or Esc to leave. Hover over any token, threat, pinpoint or place for its details and the last event that changed it.
 - **Pinpoints** mark story moments, camps, battles, dangers and places of interest. Reps add them with **+ Pinpoint on the map** on a region's page, then click the map where it goes, or with **+ Pinpoint here** on a site. Like threats, they go into the story as part of an event.
 - A region's **Condition** shows on the map: **besieged** regions are hatched red and **fallen** ones are blacked out, on the main map and the region's own map.
+- Every town has a **danger level**, from Calm through Uneasy, Dangerous and Perilous to Dire, shown as the colour of its ring on the map. It's worked out from the threats and the condition at the step on screen: the highest tier there, one step more for three or more threats at once or for a siege, Dire if the region has fallen. The NST can set a level by hand, with a reason players see, from **Set the danger level by hand** on the region's page; that only applies at the latest step of the story.
+- A town's page opens with **Right now**: its danger level and why, what players feel, its condition and since when, and its latest events. The **Right now** tab lists every chapter at a glance, most dangerous first.
 - Each region map shows a notice while it's being updated. The NST can change its wording, or switch it off for a map that's finished, from the region's page.
 - Click a site to see what's there. Reps use the steppers to place an External Evil at that site, and **+ Lesser evil or threat here** to add one.
 - **Edit sites** (reps, in their own region): click empty ground to add a site, drag a site to move it, rename or hide the built-in ones.
@@ -99,7 +101,7 @@ Each row in **Events** is one step of the story. Its `changes` column holds a JS
 
 **Export the story as JSON** under Map setup in the Story log downloads everything at once.
 
-The **Settings** tab also holds `notice` (the region map notice and which maps have it switched off) and `regions` (names and descriptions the NST lead has changed).
+The **Settings** tab also holds `notice` (the region map notice and which maps have it switched off), `regions` (names and descriptions the NST lead has changed) and `danger` (levels the NST has set by hand: `{"bracken": {"level": 3, "why": "...", "feel": "..."}}`, where 0 is Calm and 4 is Dire).
 
 ## Changing the map
 
