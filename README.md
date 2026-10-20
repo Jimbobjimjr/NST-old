@@ -1,4 +1,4 @@
-# Abandoned Lands War Map
+# Abandoned Lands Story Map
 
 A living map of the four External Evils, the Lesser Evils and other threats across the Swordcraft Abandoned Lands. It runs as a plain website, so it can be embedded in a wiki page. Chapter NST reps sign in with a code to record story events, place threats at sites on their region's map, and write their region's "current situation" notes.
 
@@ -18,7 +18,7 @@ You can open `index.html` straight from this folder to look around. Until `confi
 
 ## 1. Set up the story sheet (about ten minutes)
 
-1. Make a new Google Sheet, for example "War Map story", in a Drive the NST controls.
+1. Make a new Google Sheet, for example "Story Map sheet", in a Drive the NST controls.
 2. Open **Extensions > Apps Script**. Delete what's there and paste in all of `apps-script/Code.gs`. Save.
 3. In the function menu at the top, pick **setup** and press **Run**. Allow the permissions it asks for (it only touches this sheet).
 4. Back in the sheet you'll see the tabs Events, Sites, Notes, Reps, Settings and Log. The **Reps** tab has one row with your NST code. Change it to something you'll remember if you like.
@@ -57,7 +57,7 @@ Any static host works. Two free options:
 Open the hosted map and press **Embed**. It gives you code like this:
 
 ```html
-<iframe src="https://YOUR-SITE/index.html?embed=1" title="Abandoned Lands War Map" width="100%" height="860" style="border:0" loading="lazy" allow="fullscreen" allowfullscreen></iframe>
+<iframe src="https://YOUR-SITE/index.html?embed=1" title="Abandoned Lands Story Map" width="100%" height="860" style="border:0" loading="lazy" allow="fullscreen" allowfullscreen></iframe>
 ```
 
 - `?embed=1` gives a compact header with an "Open full map" button.

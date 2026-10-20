@@ -867,8 +867,8 @@ function openPop(kind) {
   if (kind === "share") {
     const u = new URL(location.href); u.search = ""; u.hash = "";
     u.searchParams.set("embed", "1"); if (RV.id) u.searchParams.set("region", RV.id);
-    const code = `<iframe src="${u.toString()}" title="Abandoned Lands War Map" width="100%" height="860" style="border:0;max-width:1500px" loading="lazy" allow="fullscreen" allowfullscreen></iframe>`;
-    pop.innerHTML = `<b>Embed ${RV.id ? "this region" : "the war map"} in a wiki page</b><textarea id="emb-code" readonly>${esc(code)}</textarea><div class="btnrow"><button type="button" class="btn primary" id="emb-copy">Copy code</button><button type="button" class="btn big" id="pop-close">Close</button></div><div class="note">${location.protocol === "file:" ? "This copy is opened from a file. Host the site first, then copy the code from the hosted page." : "Paste it into any wiki or site that accepts iframes. Add &amp;region= with a town's id to open straight onto its map."}</div>`;
+    const code = `<iframe src="${u.toString()}" title="Abandoned Lands Story Map" width="100%" height="860" style="border:0;max-width:1500px" loading="lazy" allow="fullscreen" allowfullscreen></iframe>`;
+    pop.innerHTML = `<b>Embed ${RV.id ? "this region" : "the story map"} in a wiki page</b><textarea id="emb-code" readonly>${esc(code)}</textarea><div class="btnrow"><button type="button" class="btn primary" id="emb-copy">Copy code</button><button type="button" class="btn big" id="pop-close">Close</button></div><div class="note">${location.protocol === "file:" ? "This copy is opened from a file. Host the site first, then copy the code from the hosted page." : "Paste it into any wiki or site that accepts iframes. Add &amp;region= with a town's id to open straight onto its map."}</div>`;
   } else if (kind === "who") {
     const m = Store.me;
     if (Store.mode === "local") {

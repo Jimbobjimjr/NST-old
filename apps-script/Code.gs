@@ -1,5 +1,5 @@
 /**
- * Abandoned Lands War Map: story sheet backend.
+ * Abandoned Lands Story Map: story sheet backend.
  *
  * Paste this whole file into Extensions > Apps Script on a new Google Sheet,
  * run setup() once, then Deploy > New deployment > Web app
