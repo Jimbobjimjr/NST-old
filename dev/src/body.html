@@ -1,0 +1,92 @@
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <h1>The Abandoned Lands War Map</h1>
+      <p id="subhead">Four External Evils and the Lesser Evils, tracked across the Chapter Network. <b id="sub-step"></b></p>
+    </div>
+    <div class="head-tools">
+      <span class="lbl" id="layer-lbl">Viewing as</span>
+      <div class="seg" role="group" aria-labelledby="layer-lbl" id="layerseg">
+        <button type="button" data-layer="public">Players</button>
+        <button type="button" data-layer="story">Story team</button>
+        <button type="button" data-layer="nst">NST</button>
+      </div>
+      <button type="button" class="btn big" id="share-btn" aria-haspopup="dialog">Embed</button>
+      <button type="button" class="btn big" id="who-btn" aria-haspopup="dialog" hidden>Rep sign in</button>
+      <a class="btn big fullmap" id="fullmap" target="_blank" rel="noopener">Open full map ↗</a>
+      <div class="pop" id="pop" role="dialog" hidden></div>
+    </div>
+  </header>
+
+  <div class="mapwrap" id="mapwrap">
+    <svg id="map" viewBox="0 0 1000 1492" role="img" aria-label="Map of the Abandoned Lands with threat positions"></svg>
+    <details class="layers" id="layers">
+      <summary>Map layers</summary>
+      <label><input type="checkbox" id="ly-routes" checked> Trade roads and sea lanes</label>
+      <label><input type="checkbox" id="ly-trails" checked> Past movements</label>
+      <label><input type="checkbox" id="ly-threats" checked> Lesser evils and other threats</label>
+      <label><input type="checkbox" id="ly-marks" checked> Pinpoints</label>
+      <label><input type="checkbox" id="ly-names"> Extra name labels</label>
+      <label><input type="checkbox" id="ly-tint" checked> Threat shading on regions</label>
+      <label><input type="checkbox" id="ly-borders" checked> Region borders</label>
+      <label><input type="checkbox" id="ly-art" checked> Shani's map art</label>
+    </details>
+    <div class="map-ctrl">
+      <button type="button" id="zin" aria-label="Zoom in">+</button>
+      <button type="button" id="zout" aria-label="Zoom out">−</button>
+      <button type="button" id="zfit" aria-label="Fit whole map" title="Fit whole map">⤢</button>
+      <button type="button" id="fs" aria-label="Full screen" title="Full screen" aria-pressed="false"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg></button>
+    </div>
+    <div class="legend" id="legend" aria-label="Legend"></div>
+    <div class="banner" id="banner" hidden></div>
+
+    <div class="rview" id="rview" hidden>
+      <div class="rv-bar">
+        <button type="button" class="btn big" id="rv-back">← Whole map</button>
+        <div class="rv-title"><div class="lbl" id="rv-band"></div><h2 id="rv-name"></h2></div>
+        <span id="rv-status"></span>
+        <label><input type="checkbox" id="rv-names"> All site names</label>
+      </div>
+      <div class="rv-notice" id="rv-notice" role="note" hidden></div>
+      <div class="rv-stage" id="rv-stage">
+        <svg id="rmap" role="img" aria-label="Region map with threat positions"></svg>
+        <div class="map-ctrl">
+          <button type="button" id="rz-in" aria-label="Zoom in">+</button>
+          <button type="button" id="rz-out" aria-label="Zoom out">−</button>
+          <button type="button" id="rz-fit" aria-label="Fit region" title="Fit region">⤢</button>
+          <button type="button" id="rz-fs" aria-label="Full screen" title="Full screen" aria-pressed="false"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg></button>
+        </div>
+        <div class="rv-hint" id="rv-hint" hidden></div>
+      </div>
+      <div class="rv-tray" id="rv-tray"></div>
+    </div>
+    <div class="tooltip" id="tip" hidden></div>
+  </div>
+
+  <section class="timeline" aria-label="Story timeline">
+    <div class="tl-btns">
+      <button type="button" id="tl-first" aria-label="First event">⏮</button>
+      <button type="button" id="tl-prev" aria-label="Previous event">◀</button>
+      <button type="button" id="tl-play" class="play" aria-label="Play the story">▶</button>
+      <button type="button" id="tl-next" aria-label="Next event">▶︎|</button>
+    </div>
+    <div class="tl-track">
+      <label class="lbl" for="scrub" style="position:absolute;left:-9999px">Story step</label>
+      <input type="range" id="scrub" min="0" max="0" value="0" step="1">
+      <div class="ticks" id="ticks"></div>
+    </div>
+    <div class="tl-now" id="tl-now"></div>
+  </section>
+
+  <aside class="side">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tab-threats" aria-selected="true" data-tab="threats">Threats</button>
+      <button type="button" role="tab" id="tab-region" aria-selected="false" data-tab="region">Region</button>
+      <button type="button" role="tab" id="tab-log" aria-selected="false" data-tab="log">Story log</button>
+    </div>
+    <div class="pane" id="pane-threats" role="tabpanel" aria-labelledby="tab-threats"></div>
+    <div class="pane" id="pane-region" role="tabpanel" aria-labelledby="tab-region" hidden></div>
+    <div class="pane" id="pane-log" role="tabpanel" aria-labelledby="tab-log" hidden></div>
+  </aside>
+</div>
+<div class="toast" id="toast" hidden></div>
