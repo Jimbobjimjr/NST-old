@@ -25,6 +25,7 @@
       <label><input type="checkbox" id="ly-routes" checked> Trade roads and sea lanes</label>
       <label><input type="checkbox" id="ly-trails" checked> Past movements</label>
       <label><input type="checkbox" id="ly-threats" checked> Lesser evils and other threats</label>
+      <label><input type="checkbox" id="ly-marks" checked> Pinpoints</label>
       <label><input type="checkbox" id="ly-names"> Extra name labels</label>
       <label><input type="checkbox" id="ly-tint" checked> Threat shading on regions</label>
       <label><input type="checkbox" id="ly-borders" checked> Region borders</label>
@@ -34,6 +35,7 @@
       <button type="button" id="zin" aria-label="Zoom in">+</button>
       <button type="button" id="zout" aria-label="Zoom out">−</button>
       <button type="button" id="zfit" aria-label="Fit whole map" title="Fit whole map">⤢</button>
+      <button type="button" id="fs" aria-label="Full screen" title="Full screen" aria-pressed="false"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg></button>
     </div>
     <div class="legend" id="legend" aria-label="Legend"></div>
     <div class="banner" id="banner" hidden></div>
@@ -45,12 +47,14 @@
         <span id="rv-status"></span>
         <label><input type="checkbox" id="rv-names"> All site names</label>
       </div>
+      <div class="rv-notice" id="rv-notice" role="note" hidden></div>
       <div class="rv-stage" id="rv-stage">
         <svg id="rmap" role="img" aria-label="Region map with threat positions"></svg>
         <div class="map-ctrl">
           <button type="button" id="rz-in" aria-label="Zoom in">+</button>
           <button type="button" id="rz-out" aria-label="Zoom out">−</button>
           <button type="button" id="rz-fit" aria-label="Fit region" title="Fit region">⤢</button>
+          <button type="button" id="rz-fs" aria-label="Full screen" title="Full screen" aria-pressed="false"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg></button>
         </div>
         <div class="rv-hint" id="rv-hint" hidden></div>
       </div>

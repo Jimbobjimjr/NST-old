@@ -9,14 +9,14 @@
  *   Events   one row per story event; `changes` holds the map changes as JSON
  *   Sites    places reps add or move on their region maps
  *   Notes    the "current situation" text for each region
- *   Reps     who can edit: code, name, role (rep | story | nst), chapters
- *   Settings map layout and other shared values
+ *   Reps     who can edit: code, name, role (story | rep | nst | lead), chapters
+ *   Settings map layout, the region map notice, renamed places
  *   Log      every change, who made it and when
  */
 
 var TABS = {
   Events: ['id', 'order', 'title', 'when', 'chapter', 'visibility', 'summary', 'changes', 'example', 'createdAt', 'updatedBy', 'updatedAt'],
-  Sites: ['id', 'region', 'name', 'x', 'y', 'note', 'hidden', 'updatedBy', 'updatedAt'],
+  Sites: ['id', 'region', 'name', 'x', 'y', 'note', 'story', 'hidden', 'custom', 'updatedBy', 'updatedAt'],
   Notes: ['region', 'public', 'story', 'updatedBy', 'updatedAt'],
   Reps: ['code', 'name', 'role', 'chapters', 'active'],
   Settings: ['key', 'value'],
@@ -24,7 +24,7 @@ var TABS = {
 };
 var CHAPTERS = ['ritterstein', 'kreigstor', 'bracken', 'eisendreieck', 'sudenburg', 'stromstadt', 'braylong', 'handelsdorf', 'weitnordlich', 'helsreik', 'reefwatch'];
 var VIS_RANK = { 'public': 0, story: 1, nst: 2 };
-var ROLE_RANK = { viewer: 0, story: 1, rep: 2, nst: 2 };
+var ROLE_RANK = { viewer: 0, story: 1, rep: 2, nst: 2, lead: 2 };
 var LESSER_MAX = 3;
 
 var OPENING = { id: 'opening', order: 0, title: 'Opening positions', when: 'NST Guidebook, October 2026', chapter: 'national', visibility: 'public',
@@ -66,7 +66,7 @@ function doPost(e) {
   try { body = JSON.parse(e.postData.contents); } catch (err) { return json({ ok: false, error: 'Bad request' }); }
   var me = auth(body.code);
   if (!me) return json({ ok: false, error: 'That rep code is not recognised.' });
-  if (me.role === 'story') return json({ ok: false, error: 'Story team codes can view but not edit.' });
+  if (me.role === 'story' && body.action !== 'saveSite') return json({ ok: false, error: 'Story team codes can add details to places, but not change the story.' });
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -104,7 +104,7 @@ function act(me, b) {
       return {};
     }
     case 'reorder': {
-      if (me.role !== 'nst') throw new Error('Only the NST can reorder the story.');
+      if (!isNst(me)) throw new Error('Only the NST can reorder the story.');
       (b.orders || []).forEach(function (o) { var r = findRow('Events', 'id', o.id); if (r) { r.order = o.order; writeRow('Events', 'id', r); } });
       log(me, 'reorder', (b.orders || []).length + ' events');
       return {};
@@ -112,9 +112,20 @@ function act(me, b) {
     case 'saveSite': {
       var s = b.site || {};
       if (!s.id || !s.region) throw new Error('A site needs an id and a region.');
-      if (!canEditRegion(me, s.region)) throw new Error('You can only change sites in your own region.');
       var cur = findRow('Sites', 'id', s.id) || {};
-      ['name', 'x', 'y', 'note', 'hidden'].forEach(function (k) { if (s[k] !== undefined) cur[k] = s[k]; });
+      // Sites reps add have ids like "bracken-c-..."; every other id is one of the map's own places.
+      var custom = String(s.id).indexOf(s.region + '-c-') === 0 || truthy(cur.custom);
+      if (me.role === 'story') {
+        if (me.chapters.indexOf(s.region) < 0) throw new Error('You can only add details to places in your own chapter.');
+        if (!cur.id && custom) throw new Error('Story team codes can add details to places, not add new places.');
+        ['note', 'story'].forEach(function (k) { if (s[k] !== undefined) cur[k] = s[k]; });
+      } else {
+        if (!canEditRegion(me, s.region)) throw new Error('You can only change sites in your own region.');
+        var named = s.name !== undefined && String(s.name).trim() !== '' && String(s.name) !== String(cur.name || '');
+        if (named && !custom && me.role !== 'lead') throw new Error('Only the NST lead can rename the map\'s own places.');
+        ['name', 'x', 'y', 'note', 'story', 'hidden'].forEach(function (k) { if (s[k] !== undefined) cur[k] = s[k]; });
+      }
+      cur.custom = custom;
       cur.id = s.id; cur.region = s.region; cur.updatedBy = me.name; cur.updatedAt = now;
       writeRow('Sites', 'id', cur);
       log(me, 'site', s.region + ': ' + (cur.name || s.id));
@@ -136,9 +147,17 @@ function act(me, b) {
       return {};
     }
     case 'savePositions': {
-      if (me.role !== 'nst') throw new Error('Only the NST can rearrange the main map.');
+      if (!isNst(me)) throw new Error('Only the NST can rearrange the main map.');
       writeRow('Settings', 'key', { key: 'positions', value: JSON.stringify(b.positions || {}) });
       log(me, 'layout', '');
+      return {};
+    }
+    case 'saveSetting': {
+      if (b.key === 'notice') { if (!isNst(me)) throw new Error('Only the NST can change the map notice.'); }
+      else if (b.key === 'regions') { if (me.role !== 'lead') throw new Error('Only the NST lead can rename places on the map.'); }
+      else throw new Error('Unknown setting ' + b.key);
+      writeRow('Settings', 'key', { key: b.key, value: JSON.stringify(b.value === undefined ? null : b.value) });
+      log(me, 'setting', b.key);
       return {};
     }
   }
@@ -150,7 +169,9 @@ function load(me) {
   var rank = ROLE_RANK[me.role] || 0;
   var events = readRows('Events').filter(function (r) { return r.id && (VIS_RANK[r.visibility || 'public'] || 0) <= rank; }).map(rowToEvent);
   var sites = readRows('Sites').filter(function (r) { return r.id; }).map(function (r) {
-    return { id: r.id, region: r.region, name: r.name, x: num(r.x), y: num(r.y), note: r.note || '', hidden: r.hidden === true || r.hidden === 'TRUE' || r.hidden === 'true' };
+    var site = { id: r.id, region: r.region, name: r.name, x: r.x === '' ? undefined : num(r.x), y: r.y === '' ? undefined : num(r.y), note: r.note || '', hidden: truthy(r.hidden), custom: truthy(r.custom) };
+    if (rank >= 1) site.story = r.story || '';
+    return site;
   });
   var notes = {};
   readRows('Notes').forEach(function (r) {
@@ -158,8 +179,10 @@ function load(me) {
     notes[r.region] = { 'public': r['public'] || '', updatedBy: r.updatedBy || '', updatedAt: iso(r.updatedAt) };
     if (rank >= 1) notes[r.region].story = r.story || '';
   });
-  var pos = findRow('Settings', 'key', 'positions');
-  return { me: { role: me.role, name: me.name, chapters: me.chapters }, events: events, sites: sites, notes: notes, positions: pos ? safeJSON(pos.value, {}) : {} };
+  var pos = findRow('Settings', 'key', 'positions'), notice = findRow('Settings', 'key', 'notice'), regions = findRow('Settings', 'key', 'regions');
+  var settings = { regions: regions ? safeJSON(regions.value, {}) : {} };
+  if (notice) settings.notice = safeJSON(notice.value, null) || undefined;
+  return { me: { role: me.role, name: me.name, chapters: me.chapters }, events: events, sites: sites, notes: notes, positions: pos ? safeJSON(pos.value, {}) : {}, settings: settings };
 }
 function viewer() { return { role: 'viewer', name: '', chapters: [] }; }
 function auth(code) {
@@ -176,10 +199,11 @@ function auth(code) {
   }
   return null;
 }
-function canEditChapter(me, chapter) { return me.role === 'nst' || (me.role === 'rep' && me.chapters.indexOf(chapter) >= 0); }
+function isNst(me) { return me.role === 'nst' || me.role === 'lead'; }
+function canEditChapter(me, chapter) { return isNst(me) || (me.role === 'rep' && me.chapters.indexOf(chapter) >= 0); }
 function canEditRegion(me, region) { return canEditChapter(me, region); }
 function checkTiers(me, changes) {
-  if (me.role === 'nst') return;
+  if (isNst(me)) return;
   changes.forEach(function (c) {
     if ((c.type === 'set' || c.type === 'move') && +c.tier >= 4) throw new Error('Tier 4 and 5 appearances need Brett or Andrew. Ask the NST to record this one.');
     if (c.type === 'threat' && c.kind === 'lesser' && +c.tier > LESSER_MAX) throw new Error('Lesser Evils stop at tier 3. The NST decides anything beyond that.');
@@ -188,7 +212,19 @@ function checkTiers(me, changes) {
 function nextOrder() { var m = -1; readRows('Events').forEach(function (r) { m = Math.max(m, num(r.order)); }); return m + 1; }
 
 /* ---------- Sheet helpers ---------- */
-function sheet(name) { var sh = SpreadsheetApp.getActive().getSheetByName(name); if (!sh) throw new Error('Run setup() first: the ' + name + ' tab is missing.'); return sh; }
+var CHECKED = {};
+function sheet(name) {
+  var sh = SpreadsheetApp.getActive().getSheetByName(name);
+  if (!sh) throw new Error('Run setup() first: the ' + name + ' tab is missing.');
+  // Sheets made by an older version of this script get any new columns added on first use.
+  if (!CHECKED[name] && TABS[name] && sh.getLastRow() > 0) {
+    CHECKED[name] = true;
+    var head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    var missing = TABS[name].filter(function (h) { return head.indexOf(h) < 0; });
+    if (missing.length) sh.getRange(1, head.length + 1, 1, missing.length).setValues([missing]);
+  }
+  return sh;
+}
 function readRows(name) {
   var sh = sheet(name), last = sh.getLastRow();
   if (last < 2) return [];
@@ -222,6 +258,7 @@ function rowToEvent(r) {
 }
 function log(me, action, detail) { try { sheet('Log').appendRow([new Date(), me.name, action, String(detail || '').slice(0, 200)]); } catch (e) {} }
 function safeJSON(s, d) { try { return s ? JSON.parse(s) : d; } catch (e) { return d; } }
+function truthy(v) { return v === true || String(v).toUpperCase() === 'TRUE'; }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 function iso(v) { return v instanceof Date ? v.toISOString() : String(v || ''); }
 function json(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }

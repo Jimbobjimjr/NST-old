@@ -47,7 +47,13 @@ const OTHER = { bandits: "Bandits and raiders", beasts: "Beasts and monsters", c
 const STATUSES = { holding: "Holding", threatened: "Threatened", besieged: "Besieged", fallen: "Fallen", liberated: "Liberated" };
 const VIS = { public: "Players", story: "Story team", nst: "NST only" };
 const VIS_RANK = { public: 0, story: 1, nst: 2 };
-const ROLES = { viewer: { name: "Viewer", max: "public" }, story: { name: "Story team", max: "story" }, rep: { name: "NST rep", max: "nst" }, nst: { name: "NST", max: "nst" } };
+const ROLES = { viewer: { name: "Viewer", max: "public" }, story: { name: "Story team", max: "story" }, rep: { name: "NST rep", max: "nst" }, nst: { name: "NST", max: "nst" }, lead: { name: "NST lead", max: "nst" } };
+/* Pinpoints: story moments and points of interest placed on a region's map. */
+const MARKS = {
+  pin: { name: "Point of interest", glyph: "●" }, star: { name: "Story moment", glyph: "★" }, flag: { name: "Camp or rally point", glyph: "⚑" },
+  battle: { name: "Battle", glyph: "⚔\uFE0E" }, danger: { name: "Danger", glyph: "!" }, mystery: { name: "Mystery", glyph: "?" }, loss: { name: "Death or loss", glyph: "✝" },
+};
+const NOTICE_TEXT = "This map is still being updated. Places and positions may change.";
 
 const REGIONS = [
   { id: "ritterstein", name: "Ritterstein", kind: "chapter", band: "Northern Highlands", pos: [675, 122],
@@ -113,6 +119,7 @@ const REGIONS = [
     blurb: "Reef-strewn waters beside Reefwatch Keep: wary Reefkin and whispered tales of leviathans." },
 ];
 const R = Object.fromEntries(REGIONS.map(r => [r.id, r]));
+const REGION_DEFAULTS = Object.fromEntries(REGIONS.map(r => [r.id, { name: r.name, blurb: r.blurb }]));
 const CHAPTERS = REGIONS.filter(r => r.kind === "chapter");
 
 const ROADS = [["kreigstor","dominion"],["kreigstor","ritterstein"],["kreigstor","bracken"],["kreigstor","sudenburg"],["bracken","sudenburg"],["sudenburg","eisendreieck"],["sudenburg","braylong"],["sudenburg","handelsdorf"],["eisendreieck","handelsdorf"],["handelsdorf","braylong"],["handelsdorf","stromstadt"],["handelsdorf","weitnordlich"],["stromstadt","helsreik"],["weitnordlich","helsreik"],["helsreik","reefwatch"],["weitnordlich","reefwatch"],["eisendreieck","wastes"],["braylong","northpass"],["braylong","southswamp"]];
@@ -156,6 +163,7 @@ const S = {
   tab: "threats", downloads: null,
   positions: {}, layoutMode: false, draft: null, playing: false, confirmDel: null,
   vb: { x: 0, y: 0, w: W, h: H },
+  settings: { notice: { text: NOTICE_TEXT, done: [] }, regions: {} }, placing: null,
 };
 const Store = { mode: "local", me: { role: "viewer", name: "", chapters: [] } };
 try { const l = localStorage.getItem("alwm.layer"); if (l && VIS_RANK[l] !== undefined) S.layer = l; } catch (e) {}
@@ -170,12 +178,24 @@ function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = fals
 
 /* ---------- Permissions ---------- */
 const role = () => Store.me.role || "viewer";
-const isNST = () => role() === "nst";
-const canDraft = () => role() === "nst" || role() === "rep";
+const isLead = () => role() === "lead";
+const isNST = () => role() === "nst" || isLead();
+const canDraft = () => isNST() || role() === "rep";
 const myChapters = () => isNST() ? CHAPTERS.map(r => r.id) : (Store.me.chapters || []);
 const canEditRegion = id => isNST() || (role() === "rep" && myChapters().includes(id));
 const canEditEvent = ev => isNST() || (role() === "rep" && myChapters().includes(ev.chapter));
 const maxLayer = () => ROLES[role()]?.max || "public";
+/* Story team codes can add details to places in their own chapters. */
+const canSiteDetails = id => canEditRegion(id) || (role() === "story" && (Store.me.chapters || []).includes(id));
+/* Built-in place names belong to the NST lead; reps name the places they add. */
+const canRenameSite = s => isLead() || (!!s.custom && canEditRegion(s.region));
+
+/* The NST lead can rename regions and rewrite their descriptions. */
+function applyRegionInfo() {
+  const o = S.settings.regions || {};
+  REGIONS.forEach(r => { const d = REGION_DEFAULTS[r.id], x = o[r.id] || {}; r.name = x.name || d.name; r.blurb = x.blurb || d.blurb; });
+}
+const noticeOn = id => !!(S.settings.notice?.text) && !(S.settings.notice.done || []).includes(id);
 
 /* ---------- Sites ---------- */
 function viewOf(id) {
@@ -192,8 +212,8 @@ function sitesFor(id, withHidden) {
   const byId = Object.fromEntries(list.map(s => [s.id, s]));
   for (const sid in S.sites) {
     const d = S.sites[sid]; if (!d || d.region !== id) continue;
-    if (byId[sid]) Object.assign(byId[sid], { name: d.name || byId[sid].name, x: d.x ?? byId[sid].x, y: d.y ?? byId[sid].y, hidden: !!d.hidden, note: d.note || "" });
-    else { const s = { id: sid, region: id, name: d.name || "New site", x: +d.x, y: +d.y, hidden: !!d.hidden, note: d.note || "", custom: true }; list.push(s); byId[sid] = s; }
+    if (byId[sid]) Object.assign(byId[sid], { name: d.name || byId[sid].name, x: d.x ?? byId[sid].x, y: d.y ?? byId[sid].y, hidden: !!d.hidden, note: d.note || "", story: d.story || "" });
+    else { const s = { id: sid, region: id, name: d.name || "New site", x: +d.x, y: +d.y, hidden: !!d.hidden, note: d.note || "", story: d.story || "", custom: true }; list.push(s); byId[sid] = s; }
   }
   return withHidden ? list : list.filter(s => !s.hidden);
 }
@@ -205,15 +225,16 @@ function visibleEvents() {
   const src = S.usingFallback ? [OPENING] : S.events;
   return src.filter(e => VIS_RANK[e.visibility || "public"] <= VIS_RANK[S.layer]).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
-function blankRegion() { return { p: {}, base: {}, at: {}, threats: {}, status: null, note: "" }; }
+function blankRegion() { return { p: {}, base: {}, at: {}, threats: {}, marks: {}, status: null, note: "" }; }
 function blankState() { const s = {}; REGIONS.forEach(r => s[r.id] = blankRegion()); return s; }
 function cloneState(s) {
   const o = {};
   for (const k in s) {
-    const r = s[k], at = {}, th = {};
+    const r = s[k], at = {}, th = {}, mk = {};
     for (const x in r.at) at[x] = { ...r.at[x] };
     for (const t in r.threats) th[t] = { ...r.threats[t] };
-    o[k] = { p: { ...r.p }, base: { ...r.base }, at, threats: th, status: r.status, note: r.note };
+    for (const m in r.marks) mk[m] = { ...r.marks[m] };
+    o[k] = { p: { ...r.p }, base: { ...r.base }, at, threats: th, marks: mk, status: r.status, note: r.note };
   }
   return o;
 }
@@ -224,6 +245,8 @@ function clearEvil(r, k, site) {
   delete r.base[k]; for (const sid in r.at) clearEvil(r, k, sid);
 }
 function findThreat(s, tid) { for (const id in s) if (s[id].threats[tid]) return id; return null; }
+function findMark(s, mid) { for (const id in s) if (s[id].marks[mid]) return id; return null; }
+const markName = m => m.label || MARKS[m.icon]?.name || "Pinpoint";
 function threatName(t) { return t.name || (t.kind === "lesser" ? LESSER[t.group]?.name : OTHER[t.group]) || "Unnamed threat"; }
 function threatKind(t) { return t.kind === "lesser" ? "Lesser Evil" + (t.name && LESSER[t.group] && t.name !== LESSER[t.group].name ? " · " + LESSER[t.group].name : "") : "Other threat · " + (OTHER[t.group] || "Unknown"); }
 function applyEvent(prev, ev) {
@@ -252,6 +275,15 @@ function applyEvent(prev, ev) {
       const reg = s[c.region] ? c.region : was; if (!reg) continue;
       s[reg].threats[c.tid] = { tid: c.tid, kind: c.kind || old?.kind || "other", group: c.group || old?.group || "unknown", name: c.name || old?.name || "",
         tier: clampT(c.tier || old?.tier || 1, 1), site: c.site ?? old?.site ?? "", note: c.note ?? old?.note ?? "" };
+    } else if (c.type === "mark" && c.mid) {
+      const was = findMark(s, c.mid), old = was ? s[was].marks[c.mid] : null;
+      if (was) delete s[was].marks[c.mid];
+      if (c.remove) continue;
+      const reg = s[c.region] ? c.region : was; if (!reg) continue;
+      // A pinpoint sits at a site, at a spot on the region's map (x, y as fractions), or region-wide.
+      const placed = !!c.site || c.x != null || !!c.wide, keepOld = !placed && reg === was && old;
+      s[reg].marks[c.mid] = { mid: c.mid, icon: MARKS[c.icon] ? c.icon : old?.icon || "pin", label: c.label ?? old?.label ?? "", note: c.note ?? old?.note ?? "",
+        site: placed ? c.site || "" : keepOld ? old.site : "", x: placed ? (c.site ? null : +c.x) : keepOld ? old.x : null, y: placed ? (c.site ? null : +c.y) : keepOld ? old.y : null };
     }
   }
   return s;
@@ -277,6 +309,15 @@ function prevForView() { return S.draft && S.draft.changes.length ? draftBaseSta
 function currentEvent() { return S.draft && S.draft.changes.length ? S.draft : EV[S.idx]; }
 const threatShown = () => $("ly-threats").checked;
 function allThreats(st) { const out = []; for (const id in st) for (const tid in st[id].threats) out.push({ ...st[id].threats[tid], region: id }); return out; }
+function allMarks(st) { const out = []; for (const id in st) for (const mid in st[id].marks) out.push({ ...st[id].marks[mid], region: id }); return out; }
+const marksShown = () => $("ly-marks").checked;
+/* The latest event, up to the step on screen, with a change matching `test`. */
+function lastChange(test) {
+  const upto = S.draft && S.draft.changes.length ? EV.length - 1 : S.idx;
+  if (S.draft && S.draft.changes.some(test)) return { title: S.draft.title || "your draft", when: "" };
+  for (let i = upto; i >= 0; i--) if (EV[i] && (EV[i].changes || []).some(test)) return EV[i];
+  return null;
+}
 
 /* ---------- Map geometry, traced from Shani Downing's map of the Abandoned Lands ---------- */
 /*__MASKS__*/
@@ -305,8 +346,7 @@ function buildMapSkeleton() {
     const m = el("marker", { id: "ah-" + k, viewBox: "0 0 10 10", refX: 6, refY: 5, markerWidth: 4.5, markerHeight: 4.5, orient: "auto-start-reverse" }, defs);
     el("path", { d: "M0,0L10,5L0,10z", fill: `var(--${k})` }, m);
   });
-  const pf = el("pattern", { id: "hatch-fallen", width: 10, height: 10, patternUnits: "userSpaceOnUse", patternTransform: "rotate(-45)" }, defs);
-  el("line", { x1: 0, y1: 0, x2: 0, y2: 10, stroke: "var(--fallen)", "stroke-width": 4, "stroke-opacity": .5 }, pf);
+  siegePattern(defs, "hatch-siege", 12);
 
   G.root = el("g", { id: "vp" }, svg);
   el("rect", { x: -3000, y: -3000, width: W + 6000, height: H + 6000, fill: "var(--sea-deep)" }, G.root);
@@ -329,6 +369,7 @@ function buildMapSkeleton() {
   G.cities = el("g", {}, G.root);
   G.clash = el("g", { "pointer-events": "none" }, G.root);
   G.threats = el("g", {}, G.root);
+  G.marks = el("g", {}, G.root);
   G.tokens = el("g", {}, G.root);
   G.fx = el("g", { "pointer-events": "none" }, G.root);
 }
@@ -347,6 +388,17 @@ function computeCells() {
 const polyD = poly => poly ? ptsD(poly) : "";
 const tintLayer = id => R[id].kind === "sea" ? G.seaTint : R[id].kind === "chapter" ? G.tint : G.outerTint;
 const clipOf = id => R[id].kind === "sea" ? "url(#clip-water)" : R[id].kind === "chapter" ? "url(#clip-land)" : "url(#clip-outer)";
+/* Besieged regions get red hatching; fallen ones are blacked out. */
+function siegePattern(defs, id, size) {
+  const p = el("pattern", { id, width: size, height: size, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
+  el("rect", { width: size, height: size, fill: "var(--bad)", "fill-opacity": .12 }, p);
+  el("line", { x1: 0, y1: 0, x2: 0, y2: size, stroke: "var(--bad)", "stroke-width": size * .32, "stroke-opacity": .62 }, p);
+  return p;
+}
+function statusFill(status, d, parent) {
+  if (status === "fallen") el("path", { d, class: "blackout", "pointer-events": "none" }, parent);
+  else if (status === "besieged") el("path", { d, fill: "url(#hatch-siege)", "pointer-events": "none" }, parent);
+}
 const cellOf = id => [...VOR.land, ...VOR.outer, ...VOR.sea].find(c => c.id === id);
 function drawTerritories() {
   computeCells();
@@ -394,6 +446,14 @@ function threatEl(t, parent, r = 13) {
   const n = el("text", { class: "num", "font-size": r * 1.15, y: t.kind === "lesser" ? 0 : -r * .02 }, g); n.textContent = t.tier;
   return g;
 }
+/* A map pin with its tip at (0, 0). */
+function pinEl(m, parent, r = 10) {
+  const g = el("g", { class: "mk", "data-mid": m.mid }, parent);
+  const cy = -r * 1.9;
+  el("path", { class: "shape", d: `M0,0L${-r * .866},${cy + r * .5}A${r},${r} 0 1,1 ${r * .866},${cy + r * .5}Z` }, g);
+  const t = el("text", { class: "glyph", y: cy, "font-size": r * 1.15 }, g); t.textContent = MARKS[m.icon]?.glyph || "●";
+  return g;
+}
 function drawCities() {
   G.cities.innerHTML = "";
   const names = $("ly-names").checked;
@@ -426,7 +486,6 @@ function drawOverlays(opts = {}) {
     [...VOR.land, ...VOR.outer, ...VOR.sea].forEach(c => {
       const p = st[c.id].p; const keys = Object.keys(p).filter(k => !S.hidden.has(k));
       const parent = tintLayer(c.id);
-      if (st[c.id].status === "fallen") el("path", { d: polyD(c.poly), fill: "url(#hatch-fallen)", "pointer-events": "none" }, parent);
       if (!keys.length) return;
       keys.sort((a, b) => p[b] - p[a]);
       const top = keys[0];
@@ -435,12 +494,14 @@ function drawOverlays(opts = {}) {
       if (keys.length > 1) el("path", { d: polyD(c.poly), fill: `url(#hatch-${keys[1]})`, "pointer-events": "none", opacity: dim ? .2 : 1 }, parent);
     });
   }
+  // fallen and besieged regions show even with threat shading off
+  [...VOR.land, ...VOR.outer, ...VOR.sea].forEach(c => statusFill(st[c.id].status, polyD(c.poly), tintLayer(c.id)));
   // status rings
   G.status.innerHTML = "";
   REGIONS.forEach(r => {
     const s = st[r.id].status; if (!s || s === "holding") return;
     const [x, y] = posOf(r.id);
-    const col = s === "threatened" ? "var(--warn)" : s === "besieged" ? "var(--bad)" : s === "liberated" ? "var(--ok)" : "var(--fallen)";
+    const col = s === "threatened" ? "var(--warn)" : s === "besieged" ? "var(--bad)" : s === "liberated" ? "var(--ok)" : "var(--muted)";
     el("circle", { class: "status-ring", cx: x, cy: y, r: 23, stroke: col, "stroke-dasharray": s === "threatened" ? "4 3" : null }, G.status);
   });
   // trails (earlier moves up to current step)
@@ -483,6 +544,19 @@ function drawOverlays(opts = {}) {
       if (fresh && !reduced && !findThreatIn(prev, t.tid)) g.classList.add("new");
     });
     if (list.length > 4) { const t = el("text", { class: "mlabel feat", x: x - 38 - 4 * 27, y: y + 36, "text-anchor": "middle" }, G.threats); t.textContent = "+" + (list.length - 4); }
+  });
+  // pinpoints: a row of small pins above the town
+  G.marks.innerHTML = "";
+  if (marksShown()) REGIONS.forEach(r => {
+    const list = Object.values(st[r.id].marks);
+    const [x, y] = posOf(r.id);
+    list.slice(0, 3).forEach((m, i) => {
+      const g = pinEl(m, G.marks, 9);
+      g.setAttribute("transform", `translate(${x - 34 - i * 22},${y - 16})`);
+      g.dataset.region = r.id;
+      if (fresh && !reduced && !findMark(prev, m.mid)) g.classList.add("new");
+    });
+    if (list.length > 3) { const t = el("text", { class: "mlabel feat", x: x - 34 - 3 * 22, y: y - 22, "text-anchor": "middle" }, G.marks); t.textContent = "+" + (list.length - 3); }
   });
   // tokens
   G.tokens.innerHTML = "";

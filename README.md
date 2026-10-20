@@ -12,6 +12,7 @@ The story is stored in a Google Sheet that you own. The website reads it and sen
 | `config.js` | The one setting you need to change: the address of your story sheet |
 | `maps/` | Shani's main map and the seven regional maps |
 | `apps-script/Code.gs` | The story sheet's backend, to paste into Google Apps Script |
+| `dev/` | The readable source of `index.html`, the build script and the tests (see "Changing the map" below) |
 
 You can open `index.html` straight from this folder to look around. Until `config.js` has an address, it shows the opening positions, and **Try editing** keeps any changes in that browser only.
 
@@ -24,7 +25,7 @@ You can open `index.html` straight from this folder to look around. Until `confi
 5. In Apps Script, choose **Deploy > New deployment**, type **Web app**, set **Execute as: Me** and **Who has access: Anyone**, then **Deploy**. Copy the web app URL. It ends in `/exec`.
 6. Open `config.js` and paste that URL between the quotes after `apiUrl:`.
 
-If you later change `Code.gs`, use **Deploy > Manage deployments > Edit > New version** so the URL stays the same.
+If you later change `Code.gs`, paste the new version over the old one, save, then use **Deploy > Manage deployments > Edit > New version > Deploy** so the URL stays the same. New columns are added to the sheet by themselves.
 
 ## 2. Add your reps
 
@@ -32,11 +33,12 @@ One row per person in the **Reps** tab:
 
 | code | name | role | chapters | active |
 |---|---|---|---|---|
-| a code you give them | how they show up in the log | `rep`, `story` or `nst` | chapter ids, comma separated, or `all` | TRUE |
+| a code you give them | how they show up in the log | `story`, `rep`, `nst` or `lead` | chapter ids, comma separated, or `all` | TRUE |
 
-- `rep` can record events for their chapters, place threats and sites in their region, and write their region's notes. They see everything, including NST-only events.
-- `story` can sign in to see story-team events and notes, but can't change anything.
-- `nst` can do everything: tier 4 and 5 appearances, Lesser Evils past tier 3, national events, reordering the story and arranging the main map.
+- `story` can sign in to see story-team events and notes, and add details to places on their chapters' region maps. They can't change the story.
+- `rep` can record events for their chapters, place threats, pinpoints and sites in their region, and write their region's notes. They see everything, including NST-only events.
+- `nst` can do everything a rep can in every chapter, plus tier 4 and 5 appearances, Lesser Evils past tier 3, national events, reordering the story, arranging the main map and the "being updated" notice on region maps.
+- `lead` is the NST lead: everything `nst` can do, plus renaming places. That covers regions and fronts on the main map (for example the North Pass) and the places drawn on each region's map. Reps can still name the sites they add themselves.
 - Set `active` to FALSE to switch a code off. Change the code to revoke it.
 
 Chapter ids: `ritterstein`, `kreigstor`, `bracken`, `eisendreieck`, `sudenburg`, `stromstadt`, `braylong`, `handelsdorf`, `weitnordlich`, `helsreik`, `reefwatch`.
@@ -55,7 +57,7 @@ Any static host works. Two free options:
 Open the hosted map and press **Embed**. It gives you code like this:
 
 ```html
-<iframe src="https://YOUR-SITE/index.html?embed=1" title="Abandoned Lands War Map" width="100%" height="860" style="border:0" loading="lazy"></iframe>
+<iframe src="https://YOUR-SITE/index.html?embed=1" title="Abandoned Lands War Map" width="100%" height="860" style="border:0" loading="lazy" allow="fullscreen" allowfullscreen></iframe>
 ```
 
 - `?embed=1` gives a compact header with an "Open full map" button.
@@ -67,6 +69,10 @@ Reps can sign in from inside the embed too.
 ## Using it
 
 - **Double-click a region**, or press **Zoom into** on its page, to open its regional map. Regions without their own map zoom into Shani's map.
+- Zoom with the **+** and **−** buttons, the mouse wheel, or two fingers on a phone. The **full screen** button (the four corners) fills the screen with the map; press it again or Esc to leave. Hover over any token, threat, pinpoint or place for its details and the last event that changed it.
+- **Pinpoints** mark story moments, camps, battles, dangers and places of interest. Reps add them with **+ Pinpoint on the map** on a region's page, then click the map where it goes, or with **+ Pinpoint here** on a site. Like threats, they go into the story as part of an event.
+- A region's **Condition** shows on the map: **besieged** regions are hatched red and **fallen** ones are blacked out, on the main map and the region's own map.
+- Each region map shows a notice while it's being updated. The NST can change its wording, or switch it off for a map that's finished, from the region's page.
 - Click a site to see what's there. Reps use the steppers to place an External Evil at that site, and **+ Lesser evil or threat here** to add one.
 - **Edit sites** (reps, in their own region): click empty ground to add a site, drag a site to move it, rename or hide the built-in ones.
 - Everything that changes the story goes into a draft in the **Story log** and is saved only when you press **Add to the story**. The map previews the draft while you work, and warns you about the guidebook's rules (one tier at a time, tier 3 sign-off, Lesser Evils stop at tier 3, home chapters for Dragon's Vengeance, the Koru'Vea and the Ferren Synod).
@@ -81,12 +87,20 @@ Each row in **Events** is one step of the story. Its `changes` column holds a JS
 { "type": "clash",  "a": "pale", "b": "wild", "region": "braylong", "site": "", "note": "..." }
 { "type": "status", "region": "sudenburg", "status": "threatened", "note": "..." }
 { "type": "threat", "tid": "t123", "kind": "lesser", "group": "koruvea", "name": "", "tier": 2, "region": "reefwatch", "site": "reefwatch-docks", "note": "...", "remove": false }
+{ "type": "mark",   "mid": "m123", "icon": "battle", "label": "The burned chapel", "region": "bracken", "x": 0.3, "y": 0.39, "note": "...", "remove": false }
 ```
 
 - `evil`: `pale`, `drowned`, `gor`, `wild`.
 - `site` is optional everywhere. Without it, a force is region-wide.
 - A `threat` keeps its `tid` for its whole life. A later change with the same `tid` moves it, changes its tier, or with `"remove": true` takes it off the map.
+- A `mark` is a pinpoint. Like a threat it keeps its `mid` for life. It sits at a `site`, or at `x` and `y` on the region's map (fractions of its width and height), or region-wide with neither. `icon` is `pin`, `star`, `flag`, `battle`, `danger`, `mystery` or `loss`.
 - `kind` is `lesser` or `other`. For `lesser`, `group` is `ferren`, `forsworn`, `vine`, `dragons` or `koruvea`. For `other` it's `bandits`, `beasts`, `cult`, `faction`, `disaster` or `unknown`.
 - Built-in site ids are the region id plus the site's name in lower case with dashes, for example `bracken-fort-blackridge`. Sites reps add are listed in the **Sites** tab, with `x` and `y` as fractions of the regional map's width and height.
 
 **Export the story as JSON** under Map setup in the Story log downloads everything at once.
+
+The **Settings** tab also holds `notice` (the region map notice and which maps have it switched off) and `regions` (names and descriptions the NST lead has changed).
+
+## Changing the map
+
+`index.html` is built from the files in `dev/src`. Edit those, then run `python3 dev/build.py` from this folder to rebuild `index.html`. `dev/test` has browser tests that run the page against `Code.gs` in Node (they need Node, Playwright and Chromium).

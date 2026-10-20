@@ -1,12 +1,13 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const makeGas = require('./gas.js');
-const SITE = '/tmp/claude-0/-home-claude/01f8701b-1d89-590c-9864-a09ac9749006/scratchpad/site';
-const OUT = process.cwd() + '/shots/'; fs.mkdirSync(OUT, { recursive: true });
+const SITE = require('path').resolve(__dirname, '../..');
+const D3 = process.env.D3 || '/tmp/claude-0/-home-claude/01f8701b-1d89-590c-9864-a09ac9749006/scratchpad/test/x/d3-delaunay-6.0.4/package/dist/d3-delaunay.min.js';
+const OUT = (process.env.SHOTS || '/tmp/claude-0/-home-claude/01f8701b-1d89-590c-9864-a09ac9749006/scratchpad/shots2') + '/'; fs.mkdirSync(OUT, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function page(b, opts, url, setup) {
   const p = await b.newPage(opts);
-  await p.route('**/cdnjs.cloudflare.com/**', r => r.fulfill({ path: 'x/d3-delaunay-6.0.4/package/dist/d3-delaunay.min.js', contentType: 'text/javascript' }));
+  await p.route('**/cdnjs.cloudflare.com/**', r => r.fulfill({ path: D3, contentType: 'text/javascript' }));
   await p.route('**/fonts.g*/**', r => r.abort());
   p.errs = []; p.on('console', m => { if (m.type() === 'error') p.errs.push(m.text()); }); p.on('pageerror', e => p.errs.push('PAGEERR ' + e.message));
   if (setup) await setup(p);
@@ -85,7 +86,8 @@ async function page(b, opts, url, setup) {
   await p.screenshot({ path: OUT + 's7-phone.png', fullPage: true });
   console.log('phone errs', p.errs); await p.close();
   // 3. Local mode demo editing, crop region
-  p = await page(b, { viewport: { width: 1440, height: 900 } }, '');
+  const noSheet = async p => p.route('**/config.js', r => r.fulfill({ body: 'window.WARMAP_CONFIG={apiUrl:""}', contentType: 'text/javascript' }));
+  p = await page(b, { viewport: { width: 1440, height: 900 } }, '', noSheet);
   await p.click('#who-btn'); await p.click('#demo-on'); await sleep(300);
   await p.evaluate(() => document.querySelector('[data-goreg]') );
   const kb = await p.locator('.citygrp[data-region="stromstadt"]').boundingBox();

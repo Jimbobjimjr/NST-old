@@ -4,7 +4,7 @@
   --accent: #7b4e18; --accent-ink: #fff8ec; --focus: #1f5f8c;
   --land: #e9dfc2; --land-hi: #ddd8c8; --land-trop: #d9e0bb; --land-wild: #cdbf9c; --sea: #a8c0c2; --sea-deep: #93b1b5;
   --coast: #5b5140; --road: #8a6a3e; --river: #5f8fa0; --mount: #6f6656; --forest: #5d7348; --label: #2a241a; --label-halo: #f1e8cf;
-  --pale: #5c7d27; --drowned: #136e8e; --gor: #ad261c; --wild: #95561a; --tok-ink: #ffffff; --lesser: #6a3d8f; --other: #4b545c;
+  --pale: #5c7d27; --drowned: #136e8e; --gor: #ad261c; --wild: #95561a; --tok-ink: #ffffff; --lesser: #6a3d8f; --other: #4b545c; --mark: #0f6f86;
   --ok: #2f7a45; --warn: #b07a12; --bad: #b3261e; --fallen: #2b2622;
   --f-display: "IM Fell English SC", "IM Fell English", Georgia, serif;
   --f-fell: "IM Fell English", Georgia, serif;
@@ -16,7 +16,7 @@
   --accent: #d6a44e; --accent-ink: #1a1408; --focus: #7fc1ee;
   --land: #3b3426; --land-hi: #36342c; --land-trop: #303624; --land-wild: #2c271c; --sea: #18282d; --sea-deep: #122025;
   --coast: #b39d6e; --road: #a2824d; --river: #4f8ba1; --mount: #a39778; --forest: #7d9661; --label: #efe5c8; --label-halo: #2a251b;
-  --pale: #9cc35a; --drowned: #4fb0d1; --gor: #e5584b; --wild: #d8954a; --tok-ink: #10140f; --lesser: #bf9ae2; --other: #b3bec7;
+  --pale: #9cc35a; --drowned: #4fb0d1; --gor: #e5584b; --wild: #d8954a; --tok-ink: #10140f; --lesser: #bf9ae2; --other: #b3bec7; --mark: #5fc4dc;
   --ok: #6cc489; --warn: #e2b04a; --bad: #ef6a5e; --fallen: #0b0a09; --art-filter: brightness(.82) saturate(.9);
   color-scheme: dark; } }
 :root[data-theme="dark"] {
@@ -24,7 +24,7 @@
   --accent: #d6a44e; --accent-ink: #1a1408; --focus: #7fc1ee;
   --land: #3b3426; --land-hi: #36342c; --land-trop: #303624; --land-wild: #2c271c; --sea: #18282d; --sea-deep: #122025;
   --coast: #b39d6e; --road: #a2824d; --river: #4f8ba1; --mount: #a39778; --forest: #7d9661; --label: #efe5c8; --label-halo: #2a251b;
-  --pale: #9cc35a; --drowned: #4fb0d1; --gor: #e5584b; --wild: #d8954a; --tok-ink: #10140f; --lesser: #bf9ae2; --other: #b3bec7;
+  --pale: #9cc35a; --drowned: #4fb0d1; --gor: #e5584b; --wild: #d8954a; --tok-ink: #10140f; --lesser: #bf9ae2; --other: #b3bec7; --mark: #5fc4dc;
   --ok: #6cc489; --warn: #e2b04a; --bad: #ef6a5e; --fallen: #0b0a09; --art-filter: brightness(.82) saturate(.9);
   color-scheme: dark; }
 
@@ -278,3 +278,21 @@ body.embed .fullmap { display: inline-flex; align-items: center; text-decoration
 @media (prefers-reduced-motion: reduce) { .rview.enter, .thr.new .shape { animation: none; } }
 .legend { left: auto; right: 10px; grid-template-columns: auto; max-width: 200px; }
 .legend .row.muted { white-space: normal; }
+/* Pinpoints, region conditions, the map notice and full screen */
+.mk { cursor: pointer; }
+.mk .shape { fill: var(--mark); stroke: var(--label-halo); stroke-width: 1.5; }
+.mk .glyph { fill: var(--tok-ink); font-family: var(--f-body); font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.mk.new .shape { animation: pop .7s ease-out; transform-box: fill-box; transform-origin: bottom; }
+.blackout { fill: #0d0c0b; fill-opacity: .8; }
+.blackout.rv { fill-opacity: .66; }
+.rv-stamp { font-family: var(--f-display); letter-spacing: .12em; text-transform: uppercase; paint-order: stroke; stroke-linejoin: round; }
+.rv-stamp.fallen { fill: #efe6d6; stroke: #0d0c0b; opacity: .85; }
+.rv-stamp.besieged { fill: var(--bad); stroke: var(--label-halo); opacity: .7; }
+.since { margin-top: 6px; border-top: 1px solid var(--line); padding-top: 4px; }
+.rv-notice { padding: 6px 12px; font-size: 13px; background: color-mix(in srgb, var(--warn) 16%, var(--panel)); border-bottom: 1px solid var(--line); border-left: 4px solid var(--warn); }
+.mapwrap.fs { position: fixed; inset: 0; z-index: 60; width: 100vw; height: 100vh; height: 100dvh; max-height: none; aspect-ratio: auto; border-radius: 0; border: 0; }
+.mapwrap.fs .rview { position: absolute; inset: 0; }
+.mapwrap.fs .rv-stage { flex: 1; aspect-ratio: auto; }
+body.fs-on { overflow: hidden; }
+.map-ctrl button svg { display: block; margin: auto; }
+.map-ctrl button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
