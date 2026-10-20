@@ -1,0 +1,1864 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Abandoned Lands War Map</title>
+<meta name="description" content="A living map of the External Evils and Lesser Evils across the Swordcraft Abandoned Lands.">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="config.js"></script>
+<style>
+/* Layout: a war table. The map fills the left, a ledger panel sits right, the story timeline runs under the map. */
+:root {
+  --bg: #dcdfd8; --panel: #f2f3ee; --panel-2: #e7e9e2; --ink: #1d2321; --muted: #59625d; --line: #c2c7bf;
+  --accent: #7b4e18; --accent-ink: #fff8ec; --focus: #1f5f8c;
+  --land: #e9dfc2; --land-hi: #ddd8c8; --land-trop: #d9e0bb; --land-wild: #cdbf9c; --sea: #a8c0c2; --sea-deep: #93b1b5;
+  --coast: #5b5140; --road: #8a6a3e; --river: #5f8fa0; --mount: #6f6656; --forest: #5d7348; --label: #2a241a; --label-halo: #f1e8cf;
+  --pale: #5c7d27; --drowned: #136e8e; --gor: #ad261c; --wild: #95561a; --tok-ink: #ffffff; --lesser: #6a3d8f; --other: #4b545c;
+  --ok: #2f7a45; --warn: #b07a12; --bad: #b3261e; --fallen: #2b2622;
+  --f-display: "IM Fell English SC", "IM Fell English", Georgia, serif;
+  --f-fell: "IM Fell English", Georgia, serif;
+  --f-body: "Alegreya Sans", "Gill Sans", "Segoe UI", system-ui, sans-serif;
+  --r: 6px; --art-filter: none;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121618; --panel: #1b2124; --panel-2: #232b2e; --ink: #e8e4d8; --muted: #9ba39e; --line: #313a3d;
+  --accent: #d6a44e; --accent-ink: #1a1408; --focus: #7fc1ee;
+  --land: #3b3426; --land-hi: #36342c; --land-trop: #303624; --land-wild: #2c271c; --sea: #18282d; --sea-deep: #122025;
+  --coast: #b39d6e; --road: #a2824d; --river: #4f8ba1; --mount: #a39778; --forest: #7d9661; --label: #efe5c8; --label-halo: #2a251b;
+  --pale: #9cc35a; --drowned: #4fb0d1; --gor: #e5584b; --wild: #d8954a; --tok-ink: #10140f; --lesser: #bf9ae2; --other: #b3bec7;
+  --ok: #6cc489; --warn: #e2b04a; --bad: #ef6a5e; --fallen: #0b0a09; --art-filter: brightness(.82) saturate(.9);
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121618; --panel: #1b2124; --panel-2: #232b2e; --ink: #e8e4d8; --muted: #9ba39e; --line: #313a3d;
+  --accent: #d6a44e; --accent-ink: #1a1408; --focus: #7fc1ee;
+  --land: #3b3426; --land-hi: #36342c; --land-trop: #303624; --land-wild: #2c271c; --sea: #18282d; --sea-deep: #122025;
+  --coast: #b39d6e; --road: #a2824d; --river: #4f8ba1; --mount: #a39778; --forest: #7d9661; --label: #efe5c8; --label-halo: #2a251b;
+  --pale: #9cc35a; --drowned: #4fb0d1; --gor: #e5584b; --wild: #d8954a; --tok-ink: #10140f; --lesser: #bf9ae2; --other: #b3bec7;
+  --ok: #6cc489; --warn: #e2b04a; --bad: #ef6a5e; --fallen: #0b0a09; --art-filter: brightness(.82) saturate(.9);
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 420px; grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: "head head" "map time" "map side"; height: 100%; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px; gap: 12px; }
+header.top { grid-area: head; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px 20px; }
+.brand h1 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: clamp(22px, 3vw, 32px); line-height: 1.05; letter-spacing: .01em; text-wrap: balance; }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.brand p b { color: var(--ink); font-weight: 500; }
+.head-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--panel); }
+.seg button { border: 0; background: transparent; padding: 6px 10px; font-size: 13px; letter-spacing: .02em; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); }
+
+.mapwrap { grid-area: map; position: relative; min-height: 0; min-width: 0; border-radius: 10px; overflow: hidden; background: var(--sea-deep); border: 1px solid var(--line); }
+#map { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+#map.panning { cursor: grabbing; }
+.map-ctrl { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.map-ctrl button, .chipbtn { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); min-width: 32px; height: 32px; padding: 0 8px; font-size: 16px; line-height: 1; }
+.layers { position: absolute; left: 10px; top: 10px; background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 13px; max-width: calc(100% - 70px); }
+.layers summary { cursor: pointer; font-weight: 500; list-style: none; }
+.layers summary::-webkit-details-marker { display: none; }
+.layers summary::after { content: " ▾"; color: var(--muted); }
+.layers[open] summary::after { content: " ▴"; }
+.layers label { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+.legend { position: absolute; left: 10px; bottom: 10px; background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; display: grid; grid-template-columns: auto auto; gap: 3px 14px; }
+.legend .row { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+.banner { position: absolute; left: 50%; transform: translateX(-50%); top: 10px; background: var(--accent); color: var(--accent-ink); padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 500; box-shadow: 0 2px 10px rgb(0 0 0 / .2); }
+.tooltip { position: absolute; pointer-events: none; z-index: 5; width: max-content; max-width: 280px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; box-shadow: 0 6px 24px rgb(0 0 0 / .22); font-size: 13px; line-height: 1.35; }
+.tooltip h4 { margin: 0 0 2px; font-family: var(--f-display); font-weight: 400; font-size: 17px; }
+.tooltip .sub { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+.tooltip .pres { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+
+/* Timeline */
+.timeline { grid-area: time; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; grid-template-columns: auto minmax(0, 1fr); max-height: 40vh; overflow-y: auto; gap: 6px 14px; align-items: center; }
+.tl-btns { display: flex; gap: 6px; }
+.tl-btns button { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); width: 36px; height: 34px; font-size: 15px; }
+.tl-btns button.play { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.tl-track { position: relative; min-width: 0; }
+#scrub { width: 100%; accent-color: var(--accent); margin: 0; }
+.ticks { position: relative; height: 18px; margin: 2px 9px 0; }
+.ticks button { position: absolute; transform: translateX(-50%); top: 0; border: 0; background: none; padding: 0 2px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ticks button.on { color: var(--ink); font-weight: 700; }
+.tl-now { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; min-width: 0; }
+.tl-now h2 { margin: 0; font-family: var(--f-fell); font-weight: 400; font-size: 19px; }
+.tl-now .meta { color: var(--muted); font-size: 13px; }
+.tl-now p { margin: 0; flex-basis: 100%; font-size: 14px; color: var(--ink); max-width: 90ch; }
+
+/* Side ledger */
+aside.side { grid-area: side; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs button { flex: 1; border: 0; background: transparent; padding: 10px 6px; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 500; }
+.pane { overflow-y: auto; padding: 14px; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 14px; }
+.pane h3 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 22px; line-height: 1.1; }
+.pane h5 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 500; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+.evil { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--panel-2); display: flex; flex-direction: column; gap: 6px; }
+.evil.off { opacity: .55; }
+.evil-head { display: flex; align-items: center; gap: 10px; }
+.evil-head .nm { font-family: var(--f-fell); font-size: 19px; line-height: 1.1; }
+.evil-head .tg { font-size: 12px; color: var(--muted); font-style: italic; }
+.evil-head .grow { flex: 1; min-width: 0; }
+.eye { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); font-size: 12px; padding: 3px 8px; }
+.eye[aria-pressed="false"] { text-decoration: line-through; color: var(--muted); }
+.meter { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meter .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.meter .bar i { display: block; height: 100%; border-radius: 3px; transition: width .6s ease; }
+.trend-up { color: var(--bad); font-weight: 700; } .trend-down { color: var(--ok); font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+button.chip:hover { border-color: var(--accent); }
+.evil dl, .region dl { margin: 0; display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 3px 10px; font-size: 13px; }
+.evil dt, .region dt { color: var(--muted); }
+.evil dd, .region dd { margin: 0; }
+.evil details summary { cursor: pointer; font-size: 13px; color: var(--accent); }
+
+.pill { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; padding: 2px 7px; border-radius: 999px; border: 1px solid currentColor; font-weight: 500; }
+.st-holding { color: var(--ok); } .st-threatened { color: var(--warn); } .st-besieged { color: var(--bad); } .st-fallen { color: var(--muted); background: var(--fallen); } .st-liberated { color: var(--ok); }
+.vis-public { color: var(--ok); } .vis-story { color: var(--warn); } .vis-nst { color: var(--bad); } .ex { color: var(--muted); }
+
+.presrow { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.presrow:first-of-type { border-top: 0; }
+.presrow .t { font-size: 13px; }
+.presrow .t small { display: block; color: var(--muted); font-size: 12px; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.stepper button { border: 0; background: var(--panel); width: 28px; height: 28px; }
+.stepper span { min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+.hist { display: flex; flex-direction: column; gap: 6px; }
+.hist button { text-align: left; border: 1px solid var(--line); background: var(--panel-2); border-radius: var(--r); padding: 6px 8px; font-size: 13px; }
+.hist button b { font-weight: 500; }
+
+.empty { border: 1px dashed var(--line); border-radius: 8px; padding: 14px; color: var(--muted); font-size: 14px; }
+
+/* Story log */
+.ev { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--panel-2); display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 2px 8px; align-items: start; }
+.ev.cur { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.ev .n { font-family: var(--f-display); font-size: 18px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.ev .tt { font-weight: 500; font-size: 14px; line-height: 1.25; }
+.ev .mm { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin-top: 2px; }
+.ev .acts { display: flex; gap: 4px; flex-wrap: wrap; justify-content: end; }
+.ev .acts button, .btn { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); font-size: 12px; padding: 3px 8px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 500; padding: 6px 12px; font-size: 14px; }
+.btn.big { padding: 6px 12px; font-size: 14px; }
+.btn.danger { color: var(--bad); }
+.btn:disabled, .ev .acts button:disabled { opacity: .4; cursor: default; }
+.draft { border: 1px solid var(--accent); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: color-mix(in srgb, var(--accent) 6%, var(--panel)); }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field input, .field select, .field textarea, .chg select, .chg input { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 5px 7px; font-size: 14px; min-width: 0; width: 100%; }
+.field textarea { resize: vertical; min-height: 56px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.chg { border: 1px solid var(--line); border-radius: var(--r); padding: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--panel); position: relative; }
+.chg .full { grid-column: 1 / -1; }
+.chg .x { position: absolute; top: 4px; right: 4px; border: 0; background: none; color: var(--muted); font-size: 16px; }
+.chg label.ck { display: flex; gap: 6px; align-items: center; font-size: 13px; grid-column: 1 / -1; }
+.warns { display: flex; flex-direction: column; gap: 4px; }
+.warns div { font-size: 12.5px; border-left: 3px solid var(--warn); padding: 2px 8px; background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.warns div.hard { border-left-color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, transparent); }
+.btnrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.setup { border-top: 1px solid var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.setup summary { cursor: pointer; font-weight: 500; }
+.note { font-size: 12.5px; color: var(--muted); }
+.toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 14px; z-index: 20; }
+
+/* SVG map styling */
+.terr { stroke: #3d2f1a; stroke-opacity: .55; stroke-width: 2; stroke-dasharray: 7 6; transition: fill-opacity .5s; }
+.terr.sea { stroke: var(--river); stroke-opacity: .35; }
+.terr.hover { stroke-opacity: 1; stroke-dasharray: none; stroke-width: 3; fill: var(--accent); fill-opacity: .12; }
+.noborder .terr:not(.hover):not(.sel) { stroke-opacity: 0; }
+#base-art { filter: var(--art-filter); }
+.terr.sel { stroke: var(--accent); stroke-opacity: 1; stroke-dasharray: none; stroke-width: 3; }
+.coast { fill: none; stroke: #3d2f1a; stroke-opacity: .5; stroke-width: 2; stroke-linejoin: round; }
+.coast-glow { fill: none; stroke: var(--sea); stroke-width: 16; stroke-opacity: .55; stroke-linejoin: round; }
+.road { fill: none; stroke: #6b4a1f; stroke-opacity: .75; stroke-width: 3; stroke-dasharray: 2 7; stroke-linecap: round; }
+.lane { fill: none; stroke: #2e6f86; stroke-opacity: .7; stroke-width: 2.5; stroke-dasharray: 1 8; stroke-linecap: round; }
+.river { fill: none; stroke: var(--river); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.mtn { fill: none; stroke: var(--mount); stroke-width: 1.5; stroke-linejoin: round; }
+.tree { fill: var(--forest); fill-opacity: .55; }
+.city-dot { fill: var(--label); stroke: var(--label-halo); stroke-width: 2; }
+.city-ring { fill: none; stroke: #2a1d0c; stroke-width: 3; stroke-opacity: .8; }
+.mlabel { font-family: var(--f-display); fill: var(--label); paint-order: stroke; stroke: var(--label-halo); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.mlabel.realm { font-family: var(--f-fell); font-style: italic; }
+.mlabel.sea { font-family: var(--f-fell); font-style: italic; fill: var(--river); stroke: var(--sea); letter-spacing: .14em; }
+.mlabel.feat { font-family: var(--f-fell); font-style: italic; font-size: 15px; fill: var(--muted); stroke-width: 3px; }
+.tok { cursor: pointer; }
+.tok .num { font-family: var(--f-body); font-weight: 700; font-size: 25px; fill: var(--tok-ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.tok .shape { stroke: var(--label-halo); stroke-width: 2; }
+.tok.new .shape { animation: pop .7s ease-out; transform-box: fill-box; transform-origin: center; }
+@keyframes pop { 0% { transform: scale(.2); } 60% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.tok.rise .halo { animation: rise 1.4s ease-out 2; transform-box: fill-box; transform-origin: center; }
+@keyframes rise { from { opacity: .8; transform: scale(1); } to { opacity: 0; transform: scale(2.4); } }
+.halo { fill: none; stroke-width: 2.5; opacity: 0; }
+.clash .ring { fill: none; stroke: var(--bad); stroke-width: 2.5; animation: clash 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes clash { from { opacity: .9; transform: scale(.6); } to { opacity: 0; transform: scale(2); } }
+.swords line { stroke: var(--label); stroke-width: 3.4; stroke-linecap: round; }
+.swords circle { fill: var(--label-halo); stroke: var(--label); stroke-width: 1.4; }
+.arrow { fill: none; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 10 8; animation: march 1s linear infinite; }
+@keyframes march { to { stroke-dashoffset: -18; } }
+.trail { fill: none; stroke-width: 3; stroke-opacity: .55; stroke-dasharray: 3 6; }
+.status-ring { fill: none; stroke-width: 4.5; }
+.citygrp.dragging { cursor: grabbing; }
+.layout-mode .citygrp { cursor: grab; }
+.dim { opacity: .25; transition: opacity .3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .arrow, .clash .ring, .tok.new .shape, .tok.rise .halo { animation: none; }
+  .meter .bar i, .terr { transition: none; }
+}
+
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto; grid-template-areas: "head" "map" "time" "side"; height: auto; }
+  .mapwrap { aspect-ratio: 1000 / 1492; height: auto; max-height: 88vh; }
+  #map { touch-action: pan-y; }
+  aside.side { max-height: none; }
+  .pane { overflow: visible; }
+  .legend { display: none; }
+}
+
+[hidden] { display: none !important; }
+/* Site additions: region view, lesser threats, sign-in, embed */
+.head-tools { position: relative; }
+.head-tools .btn.big { white-space: nowrap; }
+.pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: min(360px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: 0 10px 30px rgb(0 0 0 / .25); display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.pop textarea { width: 100%; min-height: 84px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); padding: 6px; resize: vertical; }
+.pop input { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 8px; width: 100%; }
+.who { font-size: 13px; color: var(--muted); }
+.who b { color: var(--ink); font-weight: 500; }
+.fullmap { display: none; }
+body.embed .brand p { display: none; }
+body.embed .brand h1 { font-size: 20px; }
+body.embed .app { padding-block: 8px; gap: 8px; }
+body.embed .fullmap { display: inline-flex; align-items: center; text-decoration: none; color: inherit; }
+
+.rview { position: absolute; inset: 0; z-index: 3; background: var(--sea-deep); display: flex; flex-direction: column; }
+.rview[hidden] { display: none; }
+.rview.enter { animation: rvin .45s ease-out; }
+@keyframes rvin { from { opacity: 0; transform: scale(.93); } to { opacity: 1; transform: none; } }
+.rv-bar { display: flex; align-items: center; gap: 8px 12px; padding: 8px 10px; background: color-mix(in srgb, var(--panel) 95%, transparent); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.rv-bar h2 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 22px; line-height: 1.1; }
+.rv-title { flex: 1; min-width: 140px; }
+.rv-bar label { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+.rv-stage { position: relative; flex: 1; min-height: 0; }
+#rmap { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+#rmap.panning { cursor: grabbing; }
+.site-edit #rmap { cursor: crosshair; }
+.site-edit #rmap .site { cursor: move; }
+.rv-art { filter: var(--art-filter); }
+.rv-cell { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 8 6; }
+.rv-tray { position: absolute; left: 10px; bottom: 10px; max-width: min(330px, calc(100% - 70px)); background: color-mix(in srgb, var(--panel) 93%, transparent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.rv-tray .row { display: flex; gap: 6px; align-items: center; }
+.rv-hint { position: absolute; left: 50%; transform: translateX(-50%); top: 10px; background: var(--accent); color: var(--accent-ink); padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 500; white-space: nowrap; box-shadow: 0 2px 10px rgb(0 0 0 / .2); }
+.site-dot { fill: var(--label-halo); stroke: var(--label); }
+.site.busy .site-dot { fill: var(--label); stroke: var(--label-halo); }
+.site.sel .site-dot { stroke: var(--accent); fill: var(--accent); }
+.site.pending .site-dot { fill: none; stroke: var(--accent); stroke-dasharray: 3 2; }
+.slabel { font-family: var(--f-fell); fill: var(--label); paint-order: stroke; stroke: var(--label-halo); stroke-linejoin: round; pointer-events: none; }
+.site.sel .slabel { font-weight: 700; }
+.thr { cursor: pointer; }
+.thr .shape { stroke: var(--label-halo); stroke-width: 2; }
+.thr .num { font-family: var(--f-body); font-weight: 700; fill: var(--tok-ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.thr.new .shape { animation: pop .7s ease-out; transform-box: fill-box; transform-origin: center; }
+.thrlist { display: flex; flex-direction: column; }
+.thrrow { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.thrrow:first-child { border-top: 0; }
+.thrrow .t { font-size: 13px; }
+.thrrow .t small { display: block; color: var(--muted); font-size: 12px; }
+.thrrow .acts { display: flex; gap: 4px; }
+.notebox { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--panel-2); display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.notebox p { margin: 0; white-space: pre-wrap; }
+.notebox textarea { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 6px 8px; min-height: 70px; resize: vertical; width: 100%; }
+.sitebox { border: 1px solid var(--accent); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: color-mix(in srgb, var(--accent) 5%, var(--panel)); }
+.sitebox input { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 5px 7px; width: 100%; }
+.modebar { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; color: var(--muted); background: var(--panel-2); }
+@media (max-width: 900px) {
+  .mapwrap.rv-open { aspect-ratio: auto; max-height: none; }
+  .mapwrap.rv-open > #map, .mapwrap.rv-open > .layers, .mapwrap.rv-open > .map-ctrl, .mapwrap.rv-open > .banner { display: none; }
+  .mapwrap.rv-open .rview { position: relative; inset: auto; }
+  .rv-stage { flex: none; aspect-ratio: var(--rv-ar, 4 / 3); }
+  .rv-tray { position: static; max-width: none; border-radius: 0; border-width: 1px 0 0; }
+}
+@media (prefers-reduced-motion: reduce) { .rview.enter, .thr.new .shape { animation: none; } }
+.legend { left: auto; right: 10px; grid-template-columns: auto; max-width: 200px; }
+.legend .row.muted { white-space: normal; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <h1>The Abandoned Lands War Map</h1>
+      <p id="subhead">Four External Evils and the Lesser Evils, tracked across the Chapter Network. <b id="sub-step"></b></p>
+    </div>
+    <div class="head-tools">
+      <span class="lbl" id="layer-lbl">Viewing as</span>
+      <div class="seg" role="group" aria-labelledby="layer-lbl" id="layerseg">
+        <button type="button" data-layer="public">Players</button>
+        <button type="button" data-layer="story">Story team</button>
+        <button type="button" data-layer="nst">NST</button>
+      </div>
+      <button type="button" class="btn big" id="share-btn" aria-haspopup="dialog">Embed</button>
+      <button type="button" class="btn big" id="who-btn" aria-haspopup="dialog" hidden>Rep sign in</button>
+      <a class="btn big fullmap" id="fullmap" target="_blank" rel="noopener">Open full map ↗</a>
+      <div class="pop" id="pop" role="dialog" hidden></div>
+    </div>
+  </header>
+
+  <div class="mapwrap" id="mapwrap">
+    <svg id="map" viewBox="0 0 1000 1492" role="img" aria-label="Map of the Abandoned Lands with threat positions"></svg>
+    <details class="layers" id="layers">
+      <summary>Map layers</summary>
+      <label><input type="checkbox" id="ly-routes" checked> Trade roads and sea lanes</label>
+      <label><input type="checkbox" id="ly-trails" checked> Past movements</label>
+      <label><input type="checkbox" id="ly-threats" checked> Lesser evils and other threats</label>
+      <label><input type="checkbox" id="ly-names"> Extra name labels</label>
+      <label><input type="checkbox" id="ly-tint" checked> Threat shading on regions</label>
+      <label><input type="checkbox" id="ly-borders" checked> Region borders</label>
+      <label><input type="checkbox" id="ly-art" checked> Shani's map art</label>
+    </details>
+    <div class="map-ctrl">
+      <button type="button" id="zin" aria-label="Zoom in">+</button>
+      <button type="button" id="zout" aria-label="Zoom out">−</button>
+      <button type="button" id="zfit" aria-label="Fit whole map" title="Fit whole map">⤢</button>
+    </div>
+    <div class="legend" id="legend" aria-label="Legend"></div>
+    <div class="banner" id="banner" hidden></div>
+
+    <div class="rview" id="rview" hidden>
+      <div class="rv-bar">
+        <button type="button" class="btn big" id="rv-back">← Whole map</button>
+        <div class="rv-title"><div class="lbl" id="rv-band"></div><h2 id="rv-name"></h2></div>
+        <span id="rv-status"></span>
+        <label><input type="checkbox" id="rv-names"> All site names</label>
+      </div>
+      <div class="rv-stage" id="rv-stage">
+        <svg id="rmap" role="img" aria-label="Region map with threat positions"></svg>
+        <div class="map-ctrl">
+          <button type="button" id="rz-in" aria-label="Zoom in">+</button>
+          <button type="button" id="rz-out" aria-label="Zoom out">−</button>
+          <button type="button" id="rz-fit" aria-label="Fit region" title="Fit region">⤢</button>
+        </div>
+        <div class="rv-hint" id="rv-hint" hidden></div>
+      </div>
+      <div class="rv-tray" id="rv-tray"></div>
+    </div>
+    <div class="tooltip" id="tip" hidden></div>
+  </div>
+
+  <section class="timeline" aria-label="Story timeline">
+    <div class="tl-btns">
+      <button type="button" id="tl-first" aria-label="First event">⏮</button>
+      <button type="button" id="tl-prev" aria-label="Previous event">◀</button>
+      <button type="button" id="tl-play" class="play" aria-label="Play the story">▶</button>
+      <button type="button" id="tl-next" aria-label="Next event">▶︎|</button>
+    </div>
+    <div class="tl-track">
+      <label class="lbl" for="scrub" style="position:absolute;left:-9999px">Story step</label>
+      <input type="range" id="scrub" min="0" max="0" value="0" step="1">
+      <div class="ticks" id="ticks"></div>
+    </div>
+    <div class="tl-now" id="tl-now"></div>
+  </section>
+
+  <aside class="side">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tab-threats" aria-selected="true" data-tab="threats">Threats</button>
+      <button type="button" role="tab" id="tab-region" aria-selected="false" data-tab="region">Region</button>
+      <button type="button" role="tab" id="tab-log" aria-selected="false" data-tab="log">Story log</button>
+    </div>
+    <div class="pane" id="pane-threats" role="tabpanel" aria-labelledby="tab-threats"></div>
+    <div class="pane" id="pane-region" role="tabpanel" aria-labelledby="tab-region" hidden></div>
+    <div class="pane" id="pane-log" role="tabpanel" aria-labelledby="tab-log" hidden></div>
+  </aside>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script>
+(() => {
+"use strict";
+const CONFIG = Object.assign({ apiUrl: "", pollSeconds: 60 }, window.WARMAP_CONFIG || {});
+const PARAMS = new URLSearchParams(location.search);
+const EMBED = PARAMS.get("embed") === "1";
+const SVGNS = "http://www.w3.org/2000/svg";
+const W = 1000, H = 1492;
+const MAIN_SRC = "maps/main.jpg";
+
+/* ---------- Lore (from the NST Guidebook and Community Update #3) ---------- */
+const EVIL_ORDER = ["pale", "drowned", "gor", "wild"];
+const EVILS = {
+  pale: { name: "The Pale Host", short: "Pale Host", tagline: "Deathless empire", saying: "Death has patience. Death remembers.",
+    figure: "Khallazar, the Lich-Regent (the Scarab King)", wants: "To complete something left undone. It collects the dead.",
+    presses: "Braylong's north pass, and anywhere the living abandon their dead.", feel: "A slow, suffocating press. Silence, then drums.",
+    counter: "Lay the dead to rest; break Bone Standards, soul-jars and Unholy Wards.", defectors: "Bound Remnants", shape: "diamond" },
+  drowned: { name: "The Drowned Court", short: "Drowned Court", tagline: "Abyssal dominion", saying: "What the sea takes, it keeps.",
+    figure: "The Abyssal Sovereign (the Coral Crown)", wants: "To drown the land and reclaim all water for the sea.",
+    presses: "All oceans, coasts, rivers and wells; most strongly the Whispering Sea and the coast around Reefwatch Keep.", feel: "They seep rather than march. Salt on the grass, a well bubbling.",
+    counter: "Destroy or sanctify coral spires; secure clean water; break the conch or Tide Totem.", defectors: "Brine-Oath Breakers", shape: "circle" },
+  gor: { name: "The Gor Horde", short: "Gor Horde", tagline: "Warclan confederation", saying: "War is not what they do. War is what they are.",
+    figure: "The Warchanter", wants: "Endless war, and to unmake the Age of Walls.",
+    presses: "The western border of the Abandoned Lands.", feel: "Thunder that walks. Drums like heartbeats, then the chant: Prove. Or fall.",
+    counter: "Silence the drums, take down war-banners, cut supply lines, answer a challenge.", defectors: "Black Feathers", shape: "square" },
+  wild: { name: "The Wildwrought", short: "Wildwrought", tagline: "Living retribution", saying: "The world does not need you; it remembers how to live without you.",
+    figure: "The Thorn-Regent (the Hart-Mask)", wants: "To rewild the world and purge abused magic.",
+    presses: "Braylong's south swamp, and anywhere magic is mined, bottled or forced into machines.", feel: "Surgical, not frenzied. They strike, take what should not exist, and vanish.",
+    counter: "Protect Fonts of Power, smash Briar Totems, make reparations.", defectors: "Penitents", shape: "triangle" },
+};
+const TIERS = [
+  { n: 0, name: "None", fielded: "", reach: "", approval: "" },
+  { n: 1, name: "Rumour", fielded: "Signs, omens, aftermath or a lone scout", reach: "One scene", approval: "Chapter story team" },
+  { n: 2, name: "Pocket problem", fielded: "Swarm and bruiser units only", reach: "One event, one site", approval: "Chapter story team, logged with the NST rep" },
+  { n: 3, name: "Incursion", fielded: "Adds controllers and at most one champion", reach: "One region, a few events", approval: "NST rep signs off" },
+  { n: 4, name: "Campaign", fielded: "Champions recur; a named lieutenant may appear", reach: "A region or several chapters, across a season", approval: "NST (Brett or Andrew)" },
+  { n: 5, name: "National event", fielded: "The figurehead appears", reach: "The whole Abandoned Lands; permanent change", approval: "NST only" },
+];
+/* Lesser Evils (guidebook chapter 12). They stop at tier 3. */
+const LESSER = {
+  ferren: { name: "Ferren Synod", home: "braylong", what: "Rat-like tunnel scavengers who fell from the Wildwrought into machine-worship: sabotage, black markets, poison gas." },
+  forsworn: { name: "The Forsworn", home: null, what: "A disciplined confederacy of abandoned soldiers and mercenaries: raids, siege extortion, hostage-taking. No pay, no pity, no prisoners." },
+  vine: { name: "The Waking Vine", home: null, what: "Wild magic waking the land where Skein scars tear: living forests, Vinebound guardians, Briarborn." },
+  dragons: { name: "Dragon's Vengeance", home: "sudenburg", what: "A mercenary company, once the Red Company's backer, turned rogue militant force." },
+  koruvea: { name: "Koru'Vea pirates", home: "reefwatch", what: "Island pirates who raid trade, smuggle relics and sometimes become uneasy allies." },
+};
+const OTHER = { bandits: "Bandits and raiders", beasts: "Beasts and monsters", cult: "Cult", faction: "Rival faction", disaster: "Disaster, plague or blight", unknown: "Unknown" };
+const STATUSES = { holding: "Holding", threatened: "Threatened", besieged: "Besieged", fallen: "Fallen", liberated: "Liberated" };
+const VIS = { public: "Players", story: "Story team", nst: "NST only" };
+const VIS_RANK = { public: 0, story: 1, nst: 2 };
+const ROLES = { viewer: { name: "Viewer", max: "public" }, story: { name: "Story team", max: "story" }, rep: { name: "NST rep", max: "nst" }, nst: { name: "NST", max: "nst" } };
+
+const REGIONS = [
+  { id: "ritterstein", name: "Ritterstein", kind: "chapter", band: "Northern Highlands", pos: [675, 122],
+    blurb: "The northern shield on the Whispering Sea. If a threat rises from the sea, Ritterstein bleeds first and warns the rest.",
+    gov: "Mayor advised by three Lord Merchants", econ: "Coal, stone and salt; coastal trade", tens: "Resentment of the Dominion, northern sea threats, fragile trade routes",
+    orbit: ["Whispering Sea", "Blarek Reach", "Sunken Watchtower", "Abandoned Dwarven Fortress"] },
+  { id: "kreigstor", name: "New Kriegstor", kind: "chapter", band: "Northern Highlands", pos: [496, 298],
+    blurb: "A young crossroads town, a waypoint between the Dominion and the Abandoned Lands. Kreigstor burned once. It will not burn again.",
+    gov: "Green Council with community assembly", econ: "Caravan trade, timber, stone, labour contracts", tens: "Warlord pressure, supply strain, Grove disputes, rising crime",
+    orbit: ["Verrath's Encampment", "Ruined Dominion Watchtower", "Unexplored Caverns", "Shrouded Area"] },
+  { id: "bracken", name: "Bracken", kind: "chapter", band: "Midlands", pos: [632, 418],
+    blurb: "Ringed by Leben's Blessing, a living wall of thorn bound from a Font of Power. A waypoint between the northern routes and the inland towns.",
+    gov: "Community council and an elected Reeve", econ: "Farming, hunting, leatherwork, timber", tens: "Raiders, cult influence, strained resources, distrust of mages",
+    orbit: ["Leben's Blessing"] },
+  { id: "eisendreieck", name: "Eisendreieck", kind: "chapter", band: "Midlands", pos: [276, 701],
+    blurb: "The last major settlement before the western wastelands: a city of smoke, stone and iron that survives by grit.",
+    gov: "Bürgermeister council, mining guilds and the Patrician families", econ: "Iron ore, deep-shaft mining, metalwork, grain and livestock", tens: "Guild rivalries, mine-claim disputes, bandit raids, pressure from the western wastes",
+    orbit: ["Eisendreieck Mines", "The College Foundry", "Aran's Rest", "Greyhook Pass"] },
+  { id: "sudenburg", name: "Sudenburg", kind: "chapter", band: "Midlands", pos: [491, 593], major: true,
+    blurb: "The largest city in the Abandoned Lands and the hub of the Chapter Network. If Sudenburg falls, everything falls with it.",
+    gov: "The Broker, the Small Council and the Senate", econ: "Logistics capital: grain, ore, timber, salvage, shipping", tens: "Political factions, trade pressure, corruption whispers, relic smuggling",
+    orbit: ["Zarnos (in ashes)", "Brasethis", "Vroshkar", "Krovidan (in ashes)", "Samrakel"] },
+  { id: "stromstadt", name: "Stromstadt", kind: "chapter", band: "Midlands", pos: [326, 990],
+    blurb: "A river-stop town where the Handra bends toward the eastern plains, with the hostile Rodinia Forest at its edge.",
+    gov: "Town Council of riverfolk elders; the Trade Master seat is vacant", econ: "River trade, seasonal fishing, cider brewing, timber", tens: "Rodinia Forest and Fen attacks, stalled trade, a leaderless council",
+    orbit: ["The River Docks", "Rodinia Forest Edge", "The Old Mill", "Southbrook Farms", "Greystone Ford", "Stonebrook Chapel"] },
+  { id: "braylong", name: "Braylong", kind: "chapter", band: "Midlands", pos: [656, 738],
+    blurb: "The eastern shield. Its north pass leads toward the Pale Host and its south swamp toward the Wildwrought. Every adult carries a weapon.",
+    gov: "The Moot of local warbands", econ: "Gold panning, mining, ruin salvage, grain, hunting, warhound breeding", tens: "Isolation during invasions, warband resource conflicts",
+    orbit: ["Northern Mountains (Ferren colony)", "Northern Riverlands", "Western Riverlands", "Southern Swamplands", "Southern Mountains", "Eastern Plains bunkers"] },
+  { id: "handelsdorf", name: "Handelsdorf", kind: "chapter", band: "Midlands", pos: [425, 811],
+    blurb: "A trade town on a bend of the River Handra. Whoever holds the nearby Ironwater Step controls the flow of the whole peninsula.",
+    gov: "Town Council of guild leaders, warband captains and elected seats", econ: "River trade, ferries, barter markets, tolls, black-market relics", tens: "Merchants against warbands, council infighting, smuggling, marsh cult rumours",
+    orbit: ["The Ironwater Step", "Kleiner Marsh", "Floodfields", "Sturmwald", "Graumorgen Weald", "Broken Bridge", "Morvanth's Ribs"] },
+  { id: "weitnordlich", name: "Weitnördlich", kind: "chapter", band: "Southern Tropics", pos: [548, 1080],
+    blurb: "A tropical outpost of the old Dominion. Its chapter page is still being written.",
+    gov: "To be confirmed", econ: "To be confirmed", tens: "To be confirmed", orbit: [] },
+  { id: "helsreik", name: "Helsreik", kind: "chapter", band: "Southern Tropics", pos: [327, 1199],
+    blurb: "A southern gate between the Greyspine Mountains and the river routes. The mountains above it do not sleep.",
+    gov: "Baron Jean Edgar Moreau, the Council of Stewards and his Magistrate", econ: "River tolls, ore refining, ironworks, logging, caravan contracts", tens: "Isolation, class resentment, disappearances near the mountains",
+    orbit: ["Outpost Diem", "Timberward", "Hamlet Steads", "Brinehaven", "Hidden Ruins"] },
+  { id: "reefwatch", name: "Reefwatch Keep", kind: "chapter", band: "Southern Tropics", pos: [343, 1438],
+    blurb: "A rebuilt Dominion sea-fort clinging to the southern edge. Home waters of the Koru'Vea pirates, a Lesser Evil.",
+    gov: "No formal rule; salvage crews and dock bosses", econ: "Ship salvage, relic trade, smuggling, coastal logistics", tens: "Crew power shifts, relic corruption, sea cults, cartel violence",
+    orbit: ["Moonlight Lighthouse", "Uncharted Mangroves", "Blood River Hinterlands", "Coral Shoals", "Shattered Coast Ruins"] },
+  { id: "dominion", name: "Road to the Dominion", kind: "border", band: "Beyond the network", pos: [360, 190],
+    blurb: "The old imperial road north, through New Kriegstor. The Dominion withdrew and has not returned." },
+  { id: "wastes", name: "The Western Wastes", kind: "realm", home: "gor", band: "Beyond the western border", pos: [85, 730],
+    blurb: "Beyond Greyhook Pass. The Gor Horde presses the western border from here." },
+  { id: "northpass", name: "The North Pass", kind: "realm", home: "pale", band: "Beyond Braylong", pos: [840, 600],
+    blurb: "The pass beyond Braylong's Northern Riverlands, leading toward the Pale Host." },
+  { id: "southswamp", name: "The South Swamp", kind: "realm", home: "wild", band: "Beyond Braylong", pos: [810, 890],
+    blurb: "Braylong's wildest ground, and the pass that leads toward the Wildwrought." },
+  { id: "whispering", name: "The Whispering Sea", kind: "sea", band: "Northern waters", pos: [800, 70], onArt: true,
+    blurb: "Cold northern waters off Ritterstein. In the quiet between thunder boom and clap, the Drowned Court whispers." },
+  { id: "witchlight", name: "Witchlight Cove", kind: "sea", band: "Western waters", pos: [165, 450], onArt: true,
+    blurb: "The western cove below the northern highlands, opening to the outer sea." },
+  { id: "dreamers", name: "Dreamers' Pool", kind: "sea", band: "Inland water", pos: [652, 318], onArt: true,
+    blurb: "A long inland water between New Kriegstor and Bracken." },
+  { id: "tricksters", name: "Tricksters' Loch", kind: "sea", band: "Southern waters", pos: [540, 1195], onArt: true,
+    blurb: "A long sea loch reaching up from the south coast toward Weitnördlich." },
+  { id: "shoals", name: "Dagger Shoals", kind: "sea", band: "Southern waters", pos: [225, 1375], onArt: true,
+    blurb: "Reef-strewn waters beside Reefwatch Keep: wary Reefkin and whispered tales of leviathans." },
+];
+const R = Object.fromEntries(REGIONS.map(r => [r.id, r]));
+const CHAPTERS = REGIONS.filter(r => r.kind === "chapter");
+
+const ROADS = [["kreigstor","dominion"],["kreigstor","ritterstein"],["kreigstor","bracken"],["kreigstor","sudenburg"],["bracken","sudenburg"],["sudenburg","eisendreieck"],["sudenburg","braylong"],["sudenburg","handelsdorf"],["eisendreieck","handelsdorf"],["handelsdorf","braylong"],["handelsdorf","stromstadt"],["handelsdorf","weitnordlich"],["stromstadt","helsreik"],["weitnordlich","helsreik"],["helsreik","reefwatch"],["weitnordlich","reefwatch"],["eisendreieck","wastes"],["braylong","northpass"],["braylong","southswamp"]];
+const LANES = [["ritterstein","whispering"],["reefwatch","shoals"],["helsreik","shoals"],["weitnordlich","tricksters"],["bracken","dreamers"],["kreigstor","dreamers"]];
+
+/* Regional maps drawn by each chapter. Regions without one zoom into Shani's map instead. */
+const DETAIL = {
+  bracken: { src: "maps/bracken.jpg", w: 1600, h: 1200 },
+  braylong: { src: "maps/braylong.jpg", w: 1600, h: 1200 },
+  handelsdorf: { src: "maps/handelsdorf.jpg", w: 1600, h: 1066 },
+  eisendreieck: { src: "maps/eisendreieck.jpg", w: 1024, h: 768 },
+  helsreik: { src: "maps/helsreik.jpg", w: 1600, h: 1200 },
+  reefwatch: { src: "maps/reefwatch.jpg", w: 853, h: 480 },
+  sudenburg: { src: "maps/sudenburg.jpg", w: 1600, h: 1600 },
+};
+/* Named sites on each regional map, as fractions of the map's width and height. */
+const SITE_SEED = {
+  bracken: [["Bracken Village", .46, .47], ["Lumber Mill", .12, .09], ["Forest Glade", .18, .25], ["Ancient Ruin", .06, .37], ["Bridge", .90, .65], ["Arcane Ruins", .44, .06], ["Shadow Ruin", .11, .58], ["Frostgrave Watch Tower", .35, .92], ["Fort Blackridge", .54, .79], ["Abandoned Mine", .44, .88], ["Old Battlefield", .68, .83], ["Hidden Hut", .31, .79], ["Hunting Lodge", .71, .67], ["Caves", .86, .87], ["Ruined Hamlet", .79, .93], ["The Leap", .49, .83]],
+  braylong: [["Braylong", .54, .50], ["Velaris", .58, .05], ["Halls of Aspiration", .61, .28], ["Ravenfield", .26, .25], ["Beacon Star", .21, .51], ["The Exchange", .12, .49], ["Tower of Vigilance", .73, .52], ["Edjerha", .50, .71], ["Sage Shrine", .23, .81], ["Rubrician", .61, .90], ["Broken Grotto", .85, .78]],
+  sudenburg: [["Sudenburg", .63, .63], ["Samrakel", .42, .14], ["Stoneforge Hold", .59, .36], ["Brasethis", .40, .40], ["Krovidan", .08, .43], ["Zarnos", .92, .58], ["Korgemar Keep", .72, .59], ["Berlain's Tower", .56, .70], ["Sebastian's Keep", .69, .72], ["Vroshkar", .43, .79]],
+  helsreik: [["Helsreik", .33, .46], ["Outpost Diem", .19, .03], ["Timberward", .67, .40], ["Farm", .46, .47], ["Brinehaven", .15, .72], ["Bridge", .39, .52]],
+  eisendreieck: [["Eisendreieck", .13, .80], ["Watchtower", .10, .70], ["The Foundry", .51, .14], ["The Mine", .69, .13], ["North-west encampment", .18, .12], ["North-east encampment", .82, .24], ["East encampment", .88, .46], ["Ruins (north)", .68, .28], ["Ruins (centre)", .56, .44], ["Ruins (west)", .45, .34], ["Ruins (east)", .78, .44], ["Ruins (south)", .69, .59], ["Ruins (south-east)", .78, .63], ["Ruins (south-west)", .51, .66], ["West farms", .18, .55], ["South farms", .27, .70], ["Far south farms", .54, .97], ["Waystation", .82, .92], ["The swamp", .16, .37], ["The Barrens", .93, .86]],
+  handelsdorf: [["Handelsdorf", .52, .27], ["Golden Crescent", .46, .24], ["Dirge of the Tides", .49, .15], ["Floodfields", .58, .24], ["Saint Anissa Farm", .58, .29], ["Company of the Black Rose", .64, .31], ["East Lumber Mill", .71, .33], ["West Lumber Mill", .44, .33], ["Kleiner Marsh", .33, .29], ["Great Kurgan", .12, .31], ["Skjöldling Raiders", .19, .27], ["Shadow's Crew", .03, .36], ["Morvanth's Ribs", .49, .39], ["Bärenhurst", .72, .41], ["Peligrosa Lumber Mill", .15, .44], ["Weisshardt Farm", .29, .42], ["Crusaders of Aquitaine", .04, .47], ["Gezwitscher Plains", .30, .48], ["Graumorgen Weald", .45, .49], ["Blud Mine", .33, .55], ["Hügel Mine", .69, .52], ["Bloody Oaks Lumber Mill", .60, .56], ["Order of the Wyverns", .83, .48], ["Le Roche Mine", .03, .56], ["Notre Terre Farm", .04, .63], ["Sturmwald", .63, .61], ["Zwirchau Mine", .88, .59], ["Zweimond Lake", .28, .65], ["Alfeblod Lumber Mill", .20, .70], ["Akisen Legion", .45, .70], ["Broken Bridge", .75, .67], ["Doppelsöldner Mine", .95, .68], ["Farm ruins", .80, .72], ["Gräten Lake", .60, .77], ["Sab-Mith Mine", .04, .82], ["Fyremead Farm", .45, .83], ["Ashwood Path", .42, .97], ["Elves of the Everfrost", .08, .97]],
+  reefwatch: [["Reefwatch Keep", .56, .86], ["Docks", .45, .93], ["Market", .50, .82], ["Mine and Quarry", .55, .73], ["Lumber Camp", .72, .71], ["Lighthouse", .13, .27], ["Dagger Shoals", .22, .47], ["Old Dominion Road", .49, .40], ["Blood River", .77, .45]],
+};
+const slug = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const BUILTIN_SITES = {};
+for (const id in SITE_SEED) BUILTIN_SITES[id] = SITE_SEED[id].map(([name, x, y]) => ({ id: id + "-" + slug(name), region: id, name, x, y, builtin: true }));
+
+/* Opening positions: where the guidebook says each evil presses. Shown until the shared log has events. */
+const OPENING = { id: "opening", order: 0, title: "Opening positions", when: "NST Guidebook, October 2026", chapter: "national", visibility: "public",
+  summary: "Where each External Evil presses at the start of the story, as the guidebook sets out. Tokens show pressure on that front, using the Power Scale.",
+  changes: [ { type: "set", evil: "gor", region: "wastes", tier: 3 }, { type: "set", evil: "pale", region: "northpass", tier: 3 },
+    { type: "set", evil: "wild", region: "southswamp", tier: 3 }, { type: "set", evil: "drowned", region: "whispering", tier: 3 },
+    { type: "set", evil: "drowned", region: "shoals", tier: 2 } ] };
+
+/* ---------- App state ---------- */
+const S = {
+  events: [], sites: {}, notes: {}, usingFallback: true, idx: 0, layer: "public", hidden: new Set(), focus: null, selected: null, hover: null,
+  site: null, siteEdit: false, pendingSite: null,
+  tab: "threats", downloads: null,
+  positions: {}, layoutMode: false, draft: null, playing: false, confirmDel: null,
+  vb: { x: 0, y: 0, w: W, h: H },
+};
+const Store = { mode: "local", me: { role: "viewer", name: "", chapters: [] } };
+try { const l = localStorage.getItem("alwm.layer"); if (l && VIS_RANK[l] !== undefined) S.layer = l; } catch (e) {}
+try { const h = JSON.parse(localStorage.getItem("alwm.hidden") || "[]"); h.forEach(x => S.hidden.add(x)); } catch (e) {}
+try { const ly = JSON.parse(localStorage.getItem("alwm.layers") || "{}"); for (const k in ly) { const el = document.getElementById(k); if (el) el.checked = !!ly[k]; } } catch (e) {}
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const posOf = id => S.positions[id] || R[id].pos;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 3000); }
+
+/* ---------- Permissions ---------- */
+const role = () => Store.me.role || "viewer";
+const isNST = () => role() === "nst";
+const canDraft = () => role() === "nst" || role() === "rep";
+const myChapters = () => isNST() ? CHAPTERS.map(r => r.id) : (Store.me.chapters || []);
+const canEditRegion = id => isNST() || (role() === "rep" && myChapters().includes(id));
+const canEditEvent = ev => isNST() || (role() === "rep" && myChapters().includes(ev.chapter));
+const maxLayer = () => ROLES[role()]?.max || "public";
+
+/* ---------- Sites ---------- */
+function viewOf(id) {
+  const d = DETAIL[id];
+  if (d) return { src: d.src, x: 0, y: 0, w: d.w, h: d.h, detail: true };
+  const cw = 340, ch = 255, [px, py] = posOf(id);
+  const x = Math.max(0, Math.min(W - cw, px - cw / 2)), y = Math.max(0, Math.min(H - ch, py - ch / 2));
+  return { src: MAIN_SRC, x, y, w: cw, h: ch, crop: true };
+}
+function sitesFor(id, withHidden) {
+  let list;
+  if (BUILTIN_SITES[id]) list = BUILTIN_SITES[id].map(s => ({ ...s }));
+  else { const v = viewOf(id), [px, py] = posOf(id); list = [{ id: id + "-centre", region: id, name: R[id].name, x: (px - v.x) / v.w, y: (py - v.y) / v.h, builtin: true }]; }
+  const byId = Object.fromEntries(list.map(s => [s.id, s]));
+  for (const sid in S.sites) {
+    const d = S.sites[sid]; if (!d || d.region !== id) continue;
+    if (byId[sid]) Object.assign(byId[sid], { name: d.name || byId[sid].name, x: d.x ?? byId[sid].x, y: d.y ?? byId[sid].y, hidden: !!d.hidden, note: d.note || "" });
+    else { const s = { id: sid, region: id, name: d.name || "New site", x: +d.x, y: +d.y, hidden: !!d.hidden, note: d.note || "", custom: true }; list.push(s); byId[sid] = s; }
+  }
+  return withHidden ? list : list.filter(s => !s.hidden);
+}
+function siteName(region, sid) { if (!sid) return ""; const s = sitesFor(region, true).find(x => x.id === sid); return s ? s.name : "an unmarked site"; }
+function siteXY(v, s) { return [v.x + s.x * v.w, v.y + s.y * v.h]; }
+
+/* ---------- Story engine ---------- */
+function visibleEvents() {
+  const src = S.usingFallback ? [OPENING] : S.events;
+  return src.filter(e => VIS_RANK[e.visibility || "public"] <= VIS_RANK[S.layer]).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+function blankRegion() { return { p: {}, base: {}, at: {}, threats: {}, status: null, note: "" }; }
+function blankState() { const s = {}; REGIONS.forEach(r => s[r.id] = blankRegion()); return s; }
+function cloneState(s) {
+  const o = {};
+  for (const k in s) {
+    const r = s[k], at = {}, th = {};
+    for (const x in r.at) at[x] = { ...r.at[x] };
+    for (const t in r.threats) th[t] = { ...r.threats[t] };
+    o[k] = { p: { ...r.p }, base: { ...r.base }, at, threats: th, status: r.status, note: r.note };
+  }
+  return o;
+}
+const clampT = (t, lo = 0) => Math.max(lo, Math.min(5, Math.round(+t || 0)));
+function recalc(r) { r.p = {}; for (const k of EVIL_ORDER) { let t = r.base[k] || 0; for (const sid in r.at) t = Math.max(t, r.at[sid][k] || 0); if (t) r.p[k] = t; } }
+function clearEvil(r, k, site) {
+  if (site) { if (r.at[site]) { delete r.at[site][k]; if (!Object.keys(r.at[site]).length) delete r.at[site]; } return; }
+  delete r.base[k]; for (const sid in r.at) clearEvil(r, k, sid);
+}
+function findThreat(s, tid) { for (const id in s) if (s[id].threats[tid]) return id; return null; }
+function threatName(t) { return t.name || (t.kind === "lesser" ? LESSER[t.group]?.name : OTHER[t.group]) || "Unnamed threat"; }
+function threatKind(t) { return t.kind === "lesser" ? "Lesser Evil" + (t.name && LESSER[t.group] && t.name !== LESSER[t.group].name ? " · " + LESSER[t.group].name : "") : "Other threat · " + (OTHER[t.group] || "Unknown"); }
+function applyEvent(prev, ev) {
+  const s = cloneState(prev);
+  for (const c of ev.changes || []) {
+    if (c.type === "set" && s[c.region] && EVILS[c.evil]) {
+      const r = s[c.region], t = clampT(c.tier);
+      if (c.site) { if (t) (r.at[c.site] ||= {})[c.evil] = t; else clearEvil(r, c.evil, c.site); }
+      else if (t) r.base[c.evil] = t;
+      else if (c.all) clearEvil(r, c.evil);
+      else delete r.base[c.evil];
+      recalc(r);
+    } else if (c.type === "move" && s[c.from] && s[c.to] && EVILS[c.evil]) {
+      const a = s[c.from], b = s[c.to];
+      const had = c.fromSite ? (a.at[c.fromSite]?.[c.evil] || 0) : (a.p[c.evil] || 0);
+      const t = clampT(c.tier || had || 1, 1);
+      if (!c.keep) clearEvil(a, c.evil, c.fromSite || null);
+      if (c.toSite) (b.at[c.toSite] ||= {})[c.evil] = t; else b.base[c.evil] = t;
+      recalc(a); recalc(b);
+    } else if (c.type === "status" && s[c.region]) {
+      s[c.region].status = c.status && c.status !== "none" ? c.status : null; s[c.region].note = c.note || "";
+    } else if (c.type === "threat" && c.tid) {
+      const was = findThreat(s, c.tid), old = was ? s[was].threats[c.tid] : null;
+      if (was) delete s[was].threats[c.tid];
+      if (c.remove) continue;
+      const reg = s[c.region] ? c.region : was; if (!reg) continue;
+      s[reg].threats[c.tid] = { tid: c.tid, kind: c.kind || old?.kind || "other", group: c.group || old?.group || "unknown", name: c.name || old?.name || "",
+        tier: clampT(c.tier || old?.tier || 1, 1), site: c.site ?? old?.site ?? "", note: c.note ?? old?.note ?? "" };
+    }
+  }
+  return s;
+}
+let EV = [], STATES = [];
+function rebuild() {
+  EV = visibleEvents();
+  STATES = []; let s = blankState();
+  EV.forEach(e => { s = applyEvent(s, e); STATES.push(s); });
+  if (S.idx > EV.length - 1) S.idx = Math.max(0, EV.length - 1);
+}
+function currentState() {
+  if (S.draft && S.draft.changes.length) return applyEvent(draftBaseState(), S.draft);
+  return STATES[S.idx] || blankState();
+}
+function draftBaseState() {
+  if (!S.draft) return STATES[S.idx] || blankState();
+  if (S.draft.id) { const i = EV.findIndex(e => e.id === S.draft.id); return i > 0 ? STATES[i - 1] : blankState(); }
+  return STATES[EV.length - 1] || blankState();
+}
+function prevStateOf(i) { return i > 0 ? STATES[i - 1] : blankState(); }
+function prevForView() { return S.draft && S.draft.changes.length ? draftBaseState() : prevStateOf(S.idx); }
+function currentEvent() { return S.draft && S.draft.changes.length ? S.draft : EV[S.idx]; }
+const threatShown = () => $("ly-threats").checked;
+function allThreats(st) { const out = []; for (const id in st) for (const tid in st[id].threats) out.push({ ...st[id].threats[tid], region: id }); return out; }
+
+/* ---------- Map geometry, traced from Shani Downing's map of the Abandoned Lands ---------- */
+const MASKS = {"land":[[[603.1,12.4],[598.0,16.0],[598.0,35.0],[592.9,43.7],[592.9,59.0],[608.2,88.1],[607.4,102.7],[596.5,115.8],[576.8,115.8],[565.9,120.9],[558.6,128.2],[555.0,139.8],[561.5,161.7],[552.8,171.9],[546.2,191.6],[522.2,212.7],[516.4,224.3],[500.4,242.5],[480.7,246.2],[477.1,262.2],[464.7,276.0],[458.8,277.5],[429.0,269.5],[421.0,270.9],[416.6,276.0],[416.6,287.0],[421.0,300.8],[421.0,318.3],[417.3,327.7],[442.8,338.7],[451.6,348.9],[451.6,360.5],[437.7,377.3],[401.3,388.2],[382.4,388.2],[358.3,375.1],[335.8,379.5],[326.3,374.4],[305.2,372.9],[292.1,367.8],[281.1,367.1],[271.7,370.7],[251.3,396.2],[249.1,410.8],[238.2,428.3],[233.1,443.6],[230.2,472.0],[221.4,480.7],[206.8,505.5],[175.5,525.1],[166.1,525.1],[152.9,514.2],[150.0,506.9],[142.0,501.8],[131.8,488.0],[120.2,466.9],[113.6,463.9],[108.5,467.6],[124.5,501.1],[160.2,536.8],[159.5,564.5],[164.6,573.9],[174.1,581.2],[199.6,586.3],[209.8,598.0],[209.8,608.9],[195.9,627.8],[196.6,640.2],[203.9,651.9],[223.6,671.5],[223.6,694.8],[238.2,718.1],[240.3,738.5],[257.8,745.8],[289.9,748.0],[297.2,750.9],[301.5,756.7],[300.1,766.2],[279.0,793.9],[278.2,807.0],[282.6,820.1],[281.1,829.6],[276.0,833.9],[252.7,836.9],[241.8,847.1],[239.6,855.1],[241.8,889.3],[234.5,903.9],[232.3,916.2],[233.1,930.1],[238.9,942.5],[240.3,957.8],[232.3,985.4],[235.3,1016.0],[230.9,1038.6],[244.0,1058.3],[247.6,1069.9],[249.1,1091.8],[253.5,1096.1],[262.9,1099.1],[281.9,1099.1],[288.4,1106.3],[288.4,1118.7],[281.9,1137.7],[279.7,1158.0],[281.1,1163.1],[295.0,1175.5],[291.3,1212.7],[293.5,1215.6],[303.7,1217.0],[312.5,1228.0],[311.0,1235.3],[303.7,1241.1],[287.7,1242.5],[284.0,1252.7],[272.4,1265.8],[281.1,1289.9],[266.6,1303.7],[259.3,1324.1],[259.3,1332.8],[261.5,1335.8],[267.3,1335.8],[274.6,1327.0],[291.3,1317.6],[297.2,1319.0],[301.5,1324.8],[291.3,1352.5],[295.0,1371.4],[289.1,1378.0],[278.2,1379.5],[274.6,1387.5],[279.7,1391.1],[318.3,1391.1],[324.1,1397.7],[320.5,1423.9],[313.9,1433.4],[304.4,1437.7],[302.3,1446.5],[304.4,1455.2],[319.7,1454.5],[330.7,1466.9],[340.9,1470.5],[353.2,1466.9],[373.6,1473.4],[412.2,1471.2],[426.8,1477.8],[436.3,1472.7],[445.7,1472.7],[451.6,1477.1],[459.6,1490.9],[485.1,1490.9],[493.8,1476.3],[477.1,1462.5],[470.5,1451.6],[456.7,1442.8],[456.7,1431.9],[472.7,1421.0],[481.4,1421.0],[488.7,1425.3],[501.1,1421.0],[506.9,1403.5],[501.1,1380.9],[487.3,1370.0],[470.5,1343.8],[466.9,1314.6],[474.1,1305.2],[500.4,1296.4],[521.5,1283.3],[528.0,1276.0],[536.1,1276.0],[544.1,1285.5],[549.9,1285.5],[560.1,1258.6],[560.1,1251.3],[555.0,1247.6],[539.0,1257.1],[531.0,1257.1],[519.3,1242.5],[516.4,1236.0],[516.4,1221.4],[508.4,1206.1],[504.0,1182.8],[509.8,1152.9],[541.9,1120.2],[562.3,1118.0],[570.3,1112.9],[571.0,1106.3],[575.4,1100.5],[590.7,1094.7],[602.3,1075.7],[598.0,1064.8],[600.1,1054.6],[608.9,1043.7],[624.2,1032.8],[623.5,1026.9],[618.4,1024.0],[592.1,1032.8],[577.6,1032.8],[555.0,1016.0],[552.8,1011.7],[554.3,999.3],[558.6,993.4],[573.2,985.4],[583.4,971.6],[590.7,952.7],[591.4,943.2],[586.3,932.3],[586.3,924.3],[592.1,912.6],[591.4,891.5],[593.6,886.4],[602.3,881.3],[637.3,882.7],[673.0,808.4],[674.4,797.5],[669.3,783.7],[670.8,764.7],[675.9,757.5],[687.5,756.0],[689.7,753.1],[682.4,741.4],[683.9,724.0],[677.3,706.5],[680.3,693.4],[688.3,689.0],[705.8,689.7],[729.8,681.0],[741.4,667.9],[741.4,659.9],[734.9,643.8],[710.1,611.1],[713.0,595.0],[728.3,564.5],[729.8,544.8],[724.7,539.0],[712.3,538.2],[701.4,533.1],[689.7,522.2],[689.7,509.8],[670.8,478.5],[662.8,474.1],[648.9,477.1],[640.2,471.2],[637.3,465.4],[640.2,454.5],[644.6,450.1],[667.9,440.6],[673.0,424.6],[661.3,418.8],[654.0,410.8],[654.0,406.4],[659.9,398.4],[659.1,394.0],[635.1,391.1],[613.3,351.1],[571.7,309.5],[571.0,288.4],[580.5,280.4],[586.3,270.9],[596.5,268.0],[609.6,268.8],[614.0,272.4],[617.6,284.8],[632.2,299.3],[638.7,311.0],[654.0,314.6],[680.3,327.7],[716.0,331.4],[740.0,337.2],[756.0,324.8],[761.1,317.6],[761.8,306.6],[755.3,295.0],[756.7,287.0],[780.8,269.5],[785.9,262.9],[784.4,249.8],[775.7,236.7],[774.2,220.0],[758.2,204.7],[749.5,190.1],[748.7,175.5],[751.6,165.3],[735.6,158.0],[731.2,147.9],[737.1,141.3],[750.2,141.3],[758.2,147.9],[761.8,157.3],[767.7,157.3],[774.9,152.2],[792.4,147.9],[809.2,131.1],[825.2,125.3],[828.1,121.6],[825.9,115.8],[820.1,114.3],[801.9,119.4],[794.6,117.3],[789.5,111.4],[770.6,110.0],[758.9,122.4],[734.2,120.2],[727.6,115.1],[724.7,104.2],[721.0,100.5],[688.3,98.3],[668.6,72.8],[651.1,69.2],[643.1,74.3],[630.7,74.3],[614.0,56.8],[613.3,49.5],[617.6,43.0],[616.9,33.5],[611.8,26.2],[611.8,16.0]]],"water":[[[0.0,1387.5],[0.0,1490.9],[60.5,1490.9],[60.5,1480.0],[57.5,1474.1],[44.4,1469.0],[37.1,1461.0],[35.7,1434.1],[29.1,1403.5],[18.9,1392.6]],[[212.7,1377.3],[208.3,1397.7],[206.1,1435.5],[211.2,1442.1],[220.0,1432.6],[224.3,1432.6],[229.4,1446.5],[236.0,1447.2],[238.2,1450.8],[237.4,1454.5],[232.3,1456.7],[228.0,1449.4],[216.3,1447.9],[213.4,1450.1],[215.6,1458.1],[224.3,1458.1],[226.5,1462.5],[225.1,1466.1],[216.3,1467.6],[222.1,1490.9],[509.1,1490.9],[498.2,1478.5],[477.8,1469.8],[472.7,1458.1],[455.2,1446.5],[434.8,1447.9],[418.1,1459.6],[406.4,1463.9],[370.7,1463.9],[362.0,1467.6],[354.0,1463.9],[347.4,1466.1],[340.9,1461.8],[337.2,1465.4],[332.1,1465.4],[332.8,1456.7],[324.8,1449.4],[328.5,1420.2],[332.8,1413.7],[332.1,1384.6],[328.5,1378.0],[321.2,1377.3],[311.0,1369.3],[301.5,1367.8],[295.7,1358.3],[297.9,1344.5],[312.5,1319.7],[309.5,1297.9],[288.4,1294.2],[288.4,1298.6],[291.3,1298.6],[293.5,1303.0],[286.2,1307.4],[281.9,1304.4],[282.6,1297.9],[276.0,1298.6],[267.3,1308.1],[258.6,1342.3],[238.2,1360.5],[220.0,1368.5]],[[688.3,1041.5],[667.9,1043.0],[650.4,1059.0],[635.1,1064.8],[619.8,1075.0],[590.7,1083.8],[591.4,1091.0],[587.0,1096.9],[572.5,1100.5],[570.3,1114.3],[560.1,1119.4],[542.6,1120.2],[510.6,1152.9],[509.1,1167.5],[504.0,1181.4],[509.1,1206.1],[517.1,1221.4],[517.1,1236.0],[528.0,1254.9],[525.9,1276.8],[523.7,1281.9],[498.9,1297.9],[474.1,1305.9],[466.1,1313.9],[468.3,1334.3],[473.4,1348.9],[485.8,1363.4],[488.0,1370.7],[501.8,1380.9],[504.7,1386.0],[504.0,1394.8],[508.4,1400.6],[503.3,1420.2],[493.8,1422.4],[490.9,1426.1],[489.4,1434.8],[493.8,1440.6],[511.3,1442.1],[522.9,1447.9],[549.9,1453.8],[561.5,1452.3],[572.5,1440.6],[574.7,1411.5],[569.6,1402.0],[569.6,1383.8],[565.9,1376.5],[568.1,1327.0],[591.4,1296.4],[597.2,1281.1],[598.0,1249.1],[610.3,1207.6],[610.3,1187.2],[603.8,1167.5],[602.3,1136.2],[624.2,1103.4],[641.7,1099.1],[664.2,1077.9],[681.7,1070.6],[691.9,1057.5],[691.9,1045.9]],[[585.6,271.7],[581.2,281.1],[571.7,286.2],[571.0,306.6],[613.3,350.3],[633.6,391.1],[640.2,393.3],[647.5,408.6],[665.7,421.7],[678.1,421.7],[702.8,413.7],[711.6,403.5],[723.2,375.1],[732.7,366.4],[735.6,338.7],[716.7,332.1],[682.4,329.2],[651.1,313.9],[638.0,311.7],[631.5,299.3],[616.9,284.8],[611.8,270.2],[596.5,268.8]],[[595.0,0.0],[600.1,13.8],[600.1,35.7],[595.0,45.2],[597.2,61.9],[604.5,67.7],[620.5,71.4],[638.0,86.7],[640.9,96.1],[652.6,99.8],[654.8,104.9],[665.0,107.1],[678.1,105.6],[689.7,112.2],[695.6,129.6],[705.0,135.5],[708.7,143.5],[721.0,153.7],[745.1,161.7],[754.6,161.7],[772.0,150.8],[791.0,145.7],[809.9,127.5],[836.9,118.0],[850.7,118.0],[885.7,107.8],[899.5,112.2],[906.8,110.7],[914.1,115.1],[954.8,117.3],[970.9,128.2],[977.4,155.9],[977.4,172.6],[972.3,180.6],[970.1,195.2],[983.2,203.9],[999.3,221.4],[999.3,0.0]],[[557.2,0.0],[502.5,0.0],[504.7,16.0],[494.5,37.1],[472.0,45.9],[446.5,50.3],[438.5,59.7],[439.2,76.5],[453.0,92.5],[464.7,99.1],[493.8,99.1],[517.8,85.9],[548.4,40.8],[551.3,13.8]],[[0.0,0.0],[0.0,557.2],[23.3,540.4],[32.8,515.7],[35.0,498.2],[41.5,479.2],[59.7,460.3],[74.3,458.8],[105.6,463.9],[117.3,476.3],[126.7,499.6],[152.2,526.6],[160.2,531.7],[171.9,531.7],[198.8,513.5],[206.8,511.3],[226.5,480.0],[233.8,473.4],[243.3,425.3],[257.1,405.7],[262.2,388.9],[278.2,367.1],[291.3,366.4],[303.7,372.2],[324.1,372.9],[334.3,378.7],[357.6,373.6],[380.9,387.5],[402.0,387.5],[415.9,382.4],[422.4,386.7],[428.3,384.6],[450.1,362.7],[450.8,347.4],[445.7,340.9],[413.0,329.2],[337.9,332.1],[323.4,340.9],[291.3,340.9],[276.8,332.8],[262.9,329.2],[255.6,332.8],[245.4,357.6],[225.8,370.0],[224.3,388.9],[217.8,404.2],[207.6,408.6],[183.5,431.9],[175.5,432.6],[154.4,425.3],[147.1,406.4],[137.7,393.3],[137.7,372.2],[142.8,355.4],[142.8,337.9],[138.4,328.5],[134.7,305.9],[137.7,285.5],[144.9,276.8],[150.0,257.1],[148.6,246.2],[137.7,230.9],[108.5,214.9],[104.2,201.0],[99.8,196.6],[78.7,197.4],[57.5,210.5],[35.0,217.0],[33.5,212.7],[41.5,201.7],[41.5,197.4],[17.5,191.6],[8.0,171.2],[8.0,163.9],[16.0,148.6],[21.8,143.5],[48.8,144.9],[58.3,156.6],[64.1,157.3],[67.7,163.9],[74.3,163.1],[77.9,157.3],[82.3,155.9],[83.0,147.1],[72.8,144.2],[67.7,123.1],[48.1,117.3],[64.1,102.7],[64.8,94.0],[69.2,87.4],[78.7,82.3],[89.6,82.3],[99.8,59.7],[105.6,56.1],[114.3,61.2],[117.3,69.2],[133.3,76.5],[160.2,77.9],[166.1,70.6],[174.1,38.6],[198.8,13.1],[223.6,3.6],[226.5,0.0]]]};
+const ptsD = poly => "M" + poly.map(p => (+p[0]).toFixed(1) + "," + (+p[1]).toFixed(1)).join("L") + "Z";
+const LAND_D = MASKS.land.map(ptsD).join(" ");
+const WATER_D = MASKS.water.map(ptsD).join(" ");
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+const svg = $("map");
+let G = {};
+function buildMapSkeleton() {
+  svg.innerHTML = "";
+  const defs = el("defs", {}, svg);
+  const cpL = el("clipPath", { id: "clip-land" }, defs); el("path", { d: LAND_D }, cpL);
+  const cpO = el("clipPath", { id: "clip-outer" }, defs); el("path", { d: `M0,0H${W}V${H}H0Z ` + LAND_D, "clip-rule": "evenodd" }, cpO);
+  const cpW = el("clipPath", { id: "clip-water" }, defs); el("path", { d: WATER_D }, cpW);
+  EVIL_ORDER.forEach(k => {
+    const p = el("pattern", { id: "hatch-" + k, width: 12, height: 12, patternUnits: "userSpaceOnUse", patternTransform: "rotate(35)" }, defs);
+    el("rect", { width: 12, height: 12, fill: `var(--${k})`, "fill-opacity": .14 }, p);
+    el("line", { x1: 0, y1: 0, x2: 0, y2: 12, stroke: `var(--${k})`, "stroke-width": 4, "stroke-opacity": .55 }, p);
+    const m = el("marker", { id: "ah-" + k, viewBox: "0 0 10 10", refX: 6, refY: 5, markerWidth: 4.5, markerHeight: 4.5, orient: "auto-start-reverse" }, defs);
+    el("path", { d: "M0,0L10,5L0,10z", fill: `var(--${k})` }, m);
+  });
+  const pf = el("pattern", { id: "hatch-fallen", width: 10, height: 10, patternUnits: "userSpaceOnUse", patternTransform: "rotate(-45)" }, defs);
+  el("line", { x1: 0, y1: 0, x2: 0, y2: 10, stroke: "var(--fallen)", "stroke-width": 4, "stroke-opacity": .5 }, pf);
+
+  G.root = el("g", { id: "vp" }, svg);
+  el("rect", { x: -3000, y: -3000, width: W + 6000, height: H + 6000, fill: "var(--sea-deep)" }, G.root);
+  G.plain = el("g", {}, G.root);
+  el("rect", { x: 0, y: 0, width: W, height: H, fill: "var(--land-wild)" }, G.plain);
+  el("path", { d: WATER_D, fill: "var(--sea)" }, G.plain);
+  el("path", { d: LAND_D, fill: "var(--land)" }, G.plain);
+  G.base = el("image", { id: "base-art", href: MAIN_SRC, x: 0, y: 0, width: W, height: H, preserveAspectRatio: "none" }, G.root);
+  G.outerTerr = el("g", { "clip-path": "url(#clip-outer)" }, G.root);
+  G.seaTerr = el("g", { "clip-path": "url(#clip-water)" }, G.root);
+  G.landTerr = el("g", { "clip-path": "url(#clip-land)" }, G.root);
+  G.outerTint = el("g", { "clip-path": "url(#clip-outer)" }, G.root);
+  G.seaTint = el("g", { "clip-path": "url(#clip-water)" }, G.root);
+  G.tint = el("g", { "clip-path": "url(#clip-land)" }, G.root);
+  G.coast = el("path", { d: LAND_D, class: "coast", "pointer-events": "none" }, G.root);
+  G.routes = el("g", { "pointer-events": "none" }, G.root);
+  G.trails = el("g", { "pointer-events": "none" }, G.root);
+  G.arrows = el("g", { "pointer-events": "none" }, G.root);
+  G.status = el("g", { "pointer-events": "none" }, G.root);
+  G.cities = el("g", {}, G.root);
+  G.clash = el("g", { "pointer-events": "none" }, G.root);
+  G.threats = el("g", {}, G.root);
+  G.tokens = el("g", {}, G.root);
+  G.fx = el("g", { "pointer-events": "none" }, G.root);
+}
+let VOR = { land: [], outer: [], sea: [] };
+function computeCells() {
+  const make = list => {
+    const pts = list.map(r => posOf(r.id));
+    if (pts.length < 2) return list.map(r => ({ id: r.id, poly: [[0, 0], [W, 0], [W, H], [0, H]] }));
+    const vor = d3.Delaunay.from(pts).voronoi([-40, -40, W + 40, H + 40]);
+    return list.map((r, i) => ({ id: r.id, poly: vor.cellPolygon(i) }));
+  };
+  VOR.land = make(REGIONS.filter(r => r.kind === "chapter"));
+  VOR.outer = make(REGIONS.filter(r => r.kind === "realm" || r.kind === "border"));
+  VOR.sea = make(REGIONS.filter(r => r.kind === "sea"));
+}
+const polyD = poly => poly ? ptsD(poly) : "";
+const tintLayer = id => R[id].kind === "sea" ? G.seaTint : R[id].kind === "chapter" ? G.tint : G.outerTint;
+const clipOf = id => R[id].kind === "sea" ? "url(#clip-water)" : R[id].kind === "chapter" ? "url(#clip-land)" : "url(#clip-outer)";
+const cellOf = id => [...VOR.land, ...VOR.outer, ...VOR.sea].find(c => c.id === id);
+function drawTerritories() {
+  computeCells();
+  G.landTerr.innerHTML = ""; G.seaTerr.innerHTML = ""; G.outerTerr.innerHTML = "";
+  const artOn = $("ly-art").checked;
+  G.base.style.display = artOn ? "" : "none";
+  G.plain.style.display = artOn ? "none" : "";
+  const add = (cells, parent, cls) => cells.forEach(c => {
+    const p = el("path", { d: polyD(c.poly), class: "terr " + cls, "data-region": c.id, fill: "transparent" }, parent);
+    if (S.selected === c.id) p.classList.add("sel");
+  });
+  add(VOR.outer, G.outerTerr, "outer"); add(VOR.sea, G.seaTerr, "sea"); add(VOR.land, G.landTerr, "land");
+  G.coast.style.display = $("ly-borders").checked ? "" : "none";
+  [G.landTerr, G.seaTerr, G.outerTerr].forEach(g => g.classList.toggle("noborder", !$("ly-borders").checked));
+}
+function drawRoutes() {
+  G.routes.innerHTML = "";
+  if (!$("ly-routes").checked) return;
+  const line = (a, b, cls) => { const [x1, y1] = posOf(a), [x2, y2] = posOf(b); const mx = (x1 + x2) / 2 + (y2 - y1) * .08, my = (y1 + y2) / 2 - (x2 - x1) * .08; el("path", { d: `M${x1},${y1}Q${mx},${my} ${x2},${y2}`, class: cls }, G.routes); };
+  ROADS.forEach(([a, b]) => line(a, b, "road")); LANES.forEach(([a, b]) => line(a, b, "lane"));
+}
+
+/* ---------- Tokens, cities, overlays ---------- */
+const SLOT = { pale: [40, -25], drowned: [88, -25], gor: [40, 25], wild: [88, 25] };
+function slotPos(regionId, evil) { const [x, y] = posOf(regionId), [dx, dy] = SLOT[evil]; return [x + dx, y + dy]; }
+function shapePath(shape, r) {
+  if (shape === "diamond") return `M0,${-r * 1.2}L${r * 1.1},0L0,${r * 1.2}L${-r * 1.1},0Z`;
+  if (shape === "square") return `M${-r * .92},${-r * .92}H${r * .92}V${r * .92}H${-r * .92}Z`;
+  if (shape === "triangle") return `M0,${-r * 1.25}L${r * 1.15},${r * .8}H${-r * 1.15}Z`;
+  if (shape === "hex") { const a = []; for (let i = 0; i < 6; i++) { const t = Math.PI / 3 * i; a.push(`${(r * 1.08 * Math.cos(t)).toFixed(2)},${(r * 1.08 * Math.sin(t)).toFixed(2)}`); } return "M" + a.join("L") + "Z"; }
+  if (shape === "shield") return `M${-r},${-r * .9}H${r}V${r * .15}Q${r},${r * .75} 0,${r * 1.15}Q${-r},${r * .75} ${-r},${r * .15}Z`;
+  return `M${-r},0A${r},${r} 0 1,0 ${r},0A${r},${r} 0 1,0 ${-r},0Z`;
+}
+function tokenEl(evil, tier, parent) {
+  const g = el("g", { class: "tok", "data-evil": evil }, parent);
+  el("path", { class: "halo", d: shapePath(EVILS[evil].shape, 23), stroke: `var(--${evil})` }, g);
+  el("path", { class: "shape", d: shapePath(EVILS[evil].shape, 22), fill: `var(--${evil})` }, g);
+  const t = el("text", { class: "num", y: EVILS[evil].shape === "triangle" ? 3 : 0 }, g); t.textContent = tier;
+  return g;
+}
+const thrColor = t => t.kind === "lesser" ? "var(--lesser)" : "var(--other)";
+function threatEl(t, parent, r = 13) {
+  const g = el("g", { class: "thr", "data-tid": t.tid }, parent);
+  el("path", { class: "shape", d: shapePath(t.kind === "lesser" ? "hex" : "shield", r), fill: thrColor(t) }, g);
+  const n = el("text", { class: "num", "font-size": r * 1.15, y: t.kind === "lesser" ? 0 : -r * .02 }, g); n.textContent = t.tier;
+  return g;
+}
+function drawCities() {
+  G.cities.innerHTML = "";
+  const names = $("ly-names").checked;
+  REGIONS.forEach(r => {
+    const [x, y] = posOf(r.id);
+    const g = el("g", { class: "citygrp", "data-region": r.id, transform: `translate(${x},${y})` }, G.cities);
+    if (r.kind === "chapter") {
+      el("circle", { class: "city-ring", r: r.major ? 17 : 14 }, g);
+      if (names || !$("ly-art").checked) { const t = el("text", { class: "mlabel", y: 44, "text-anchor": "middle", "font-size": r.major ? 30 : 25 }, g); t.textContent = r.name; }
+    } else if (r.kind === "sea") {
+      el("circle", { r: 5, fill: "var(--river)", "fill-opacity": .7 }, g);
+      if (names || !r.onArt || !$("ly-art").checked) { const t = el("text", { class: "mlabel sea", y: 32, "text-anchor": "middle", "font-size": 24 }, g); t.textContent = r.name; }
+    } else {
+      el("circle", { r: 5, fill: "var(--label)", "fill-opacity": .7 }, g);
+      const t = el("text", { class: "mlabel realm", y: 34, "text-anchor": "middle", "font-size": 27 }, g); t.textContent = r.name;
+      if (r.home) { const s2 = el("text", { class: "mlabel feat", y: 58, "text-anchor": "middle" }, g); s2.textContent = "Front of " + EVILS[r.home].name; }
+    }
+    el("circle", { r: 26, fill: "transparent" }, g);
+  });
+}
+function drawOverlays(opts = {}) {
+  const st = currentState();
+  const ev = currentEvent();
+  const prev = prevForView();
+  const fresh = opts.fresh !== false;
+  const hiddenTok = opts.hiddenTok || new Set();
+  // tint
+  G.tint.innerHTML = ""; G.seaTint.innerHTML = ""; G.outerTint.innerHTML = "";
+  if ($("ly-tint").checked) {
+    [...VOR.land, ...VOR.outer, ...VOR.sea].forEach(c => {
+      const p = st[c.id].p; const keys = Object.keys(p).filter(k => !S.hidden.has(k));
+      const parent = tintLayer(c.id);
+      if (st[c.id].status === "fallen") el("path", { d: polyD(c.poly), fill: "url(#hatch-fallen)", "pointer-events": "none" }, parent);
+      if (!keys.length) return;
+      keys.sort((a, b) => p[b] - p[a]);
+      const top = keys[0];
+      const dim = S.focus && S.focus !== top;
+      el("path", { d: polyD(c.poly), fill: `var(--${top})`, "fill-opacity": dim ? .03 : Math.min(.42, .07 * p[top] + .04), "pointer-events": "none" }, parent);
+      if (keys.length > 1) el("path", { d: polyD(c.poly), fill: `url(#hatch-${keys[1]})`, "pointer-events": "none", opacity: dim ? .2 : 1 }, parent);
+    });
+  }
+  // status rings
+  G.status.innerHTML = "";
+  REGIONS.forEach(r => {
+    const s = st[r.id].status; if (!s || s === "holding") return;
+    const [x, y] = posOf(r.id);
+    const col = s === "threatened" ? "var(--warn)" : s === "besieged" ? "var(--bad)" : s === "liberated" ? "var(--ok)" : "var(--fallen)";
+    el("circle", { class: "status-ring", cx: x, cy: y, r: 23, stroke: col, "stroke-dasharray": s === "threatened" ? "4 3" : null }, G.status);
+  });
+  // trails (earlier moves up to current step)
+  G.trails.innerHTML = "";
+  if ($("ly-trails").checked) {
+    const upto = S.draft && S.draft.changes.length ? EV.length : S.idx;
+    for (let i = 0; i < upto; i++) (EV[i].changes || []).forEach(c => {
+      if (c.type !== "move" || S.hidden.has(c.evil) || !R[c.from] || !R[c.to] || c.from === c.to) return;
+      el("path", { class: "trail", d: arcD(posOf(c.from), posOf(c.to), .18), stroke: `var(--${c.evil})`, opacity: S.focus && S.focus !== c.evil ? .2 : 1 }, G.trails);
+    });
+  }
+  // arrows for this step's moves
+  G.arrows.innerHTML = "";
+  (ev?.changes || []).forEach(c => {
+    if (c.type !== "move" || S.hidden.has(c.evil) || !R[c.from] || !R[c.to] || c.from === c.to) return;
+    const a = posOf(c.from), b = posOf(c.to);
+    const bb = shorten(a, b, 30);
+    el("path", { class: "arrow", d: arcD(a, bb, .18), stroke: `var(--${c.evil})`, "marker-end": `url(#ah-${c.evil})`, opacity: S.focus && S.focus !== c.evil ? .2 : .95 }, G.arrows);
+  });
+  // clashes: explicit this step (pulsing) + contested (static)
+  G.clash.innerHTML = "";
+  const explicit = new Set((ev?.changes || []).filter(c => c.type === "clash" && R[c.region]).map(c => c.region));
+  REGIONS.forEach(r => {
+    const keys = Object.keys(st[r.id].p).filter(k => !S.hidden.has(k));
+    if (!explicit.has(r.id) && keys.length < 2) return;
+    const [x, y] = posOf(r.id);
+    const g = el("g", { class: explicit.has(r.id) ? "clash" : "", transform: `translate(${x - 40},${y - 30})` }, G.clash);
+    if (explicit.has(r.id)) el("circle", { class: "ring", r: 17 }, g);
+    swords(g, 14);
+  });
+  // lesser evils and other threats: a row of small markers under the town
+  G.threats.innerHTML = "";
+  if (threatShown()) REGIONS.forEach(r => {
+    const list = Object.values(st[r.id].threats).sort((a, b) => b.tier - a.tier);
+    const [x, y] = posOf(r.id);
+    list.slice(0, 4).forEach((t, i) => {
+      const g = threatEl(t, G.threats, 12);
+      g.setAttribute("transform", `translate(${x - 38 - i * 27},${y + 30})`);
+      g.dataset.region = r.id;
+      if (fresh && !reduced && !findThreatIn(prev, t.tid)) g.classList.add("new");
+    });
+    if (list.length > 4) { const t = el("text", { class: "mlabel feat", x: x - 38 - 4 * 27, y: y + 36, "text-anchor": "middle" }, G.threats); t.textContent = "+" + (list.length - 4); }
+  });
+  // tokens
+  G.tokens.innerHTML = "";
+  REGIONS.forEach(r => {
+    const p = st[r.id].p;
+    EVIL_ORDER.forEach(k => {
+      if (!p[k] || S.hidden.has(k)) return;
+      const key = r.id + ":" + k;
+      const [x, y] = slotPos(r.id, k);
+      const g = tokenEl(k, p[k], G.tokens);
+      g.setAttribute("transform", `translate(${x},${y})`);
+      g.dataset.region = r.id;
+      if (hiddenTok.has(key)) g.style.opacity = 0;
+      if (S.focus && S.focus !== k) g.classList.add("dim");
+      const before = prev[r.id]?.p[k] || 0;
+      if (fresh && !before && !reduced) g.classList.add("new");
+      else if (fresh && p[k] > before) g.classList.add("rise");
+    });
+  });
+}
+function findThreatIn(st, tid) { return !!findThreat(st, tid); }
+function swords(parent, r) {
+  const sw = el("g", { class: "swords", transform: r === 14 ? null : `scale(${r / 14})` }, parent);
+  el("circle", { r: 14 }, sw);
+  el("line", { x1: -8, y1: -8, x2: 8, y2: 8 }, sw); el("line", { x1: 8, y1: -8, x2: -8, y2: 8 }, sw);
+  return sw;
+}
+function arcD(a, b, bend) { const mx = (a[0] + b[0]) / 2 - (b[1] - a[1]) * bend, my = (a[1] + b[1]) / 2 + (b[0] - a[0]) * bend; return `M${a[0]},${a[1]}Q${mx},${my} ${b[0]},${b[1]}`; }
+function shorten(a, b, d) { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [b[0] - dx / l * d, b[1] - dy / l * d]; }
+function fly(evil, from, to, tier, done) {
+  const g = tokenEl(evil, tier, G.fx);
+  const a = slotPos(from, evil), b = slotPos(to, evil);
+  const mx = (a[0] + b[0]) / 2 - (b[1] - a[1]) * .18, my = (a[1] + b[1]) / 2 + (b[0] - a[0]) * .18;
+  const t0 = performance.now(), D = 1100;
+  const step = now => {
+    let t = Math.min(1, (now - t0) / D); const e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const x = (1 - e) * (1 - e) * a[0] + 2 * (1 - e) * e * mx + e * e * b[0];
+    const y = (1 - e) * (1 - e) * a[1] + 2 * (1 - e) * e * my + e * e * b[1];
+    g.setAttribute("transform", `translate(${x},${y}) scale(${1 + Math.sin(e * Math.PI) * .35})`);
+    if (t < 1) requestAnimationFrame(step); else { g.remove(); done && done(); }
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- Rendering the whole map ---------- */
+function redraw(opts) { drawOverlays(opts); renderRegionView(opts); }
+function renderMap(opts) {
+  drawTerritories(); drawRoutes(); drawCities(); drawOverlays(opts); renderRegionView(opts);
+  svg.classList.toggle("layout-mode", S.layoutMode);
+  const bn = $("banner");
+  if (S.layoutMode) { bn.hidden = false; bn.textContent = "Drag places to reposition them"; }
+  else if (S.draft && S.draft.changes.length) { bn.hidden = false; bn.textContent = "Previewing your draft event"; }
+  else bn.hidden = true;
+}
+function goTo(i, animate) {
+  if (!EV.length) return;
+  i = Math.max(0, Math.min(EV.length - 1, i));
+  const from = S.idx; S.idx = i;
+  const forwardOne = animate && i === from + 1 && !reduced && !RV.id;
+  const moves = forwardOne ? (EV[i].changes || []).filter(c => c.type === "move" && R[c.from] && R[c.to] && c.from !== c.to && !S.hidden.has(c.evil)) : [];
+  const hide = new Set(moves.map(c => c.to + ":" + c.evil));
+  redraw({ hiddenTok: hide, fresh: true });
+  moves.forEach(c => {
+    const tier = STATES[i][c.to].p[c.evil] || c.tier || 1;
+    fly(c.evil, c.from, c.to, tier, () => {
+      const t = G.tokens.querySelector(`.tok[data-evil="${c.evil}"][data-region="${c.to}"]`);
+      if (t) { t.style.opacity = ""; t.classList.add("new"); }
+    });
+  });
+  renderChrome();
+}
+
+/* ---------- Tooltip ---------- */
+const tip = $("tip");
+function presenceList(st, id) {
+  const p = st[id].p; const keys = EVIL_ORDER.filter(k => p[k]);
+  const th = Object.values(st[id].threats);
+  if (!keys.length && !th.length) return `<div class="muted small">No threats here.</div>`;
+  return keys.map(k => `<div style="display:flex;gap:6px;align-items:center">${swatch(k, 14)}<span><b style="font-weight:500">${EVILS[k].short}</b> · tier ${p[k]} ${esc(TIERS[p[k]].name)}</span></div>`).join("") +
+    th.map(t => `<div style="display:flex;gap:6px;align-items:center">${thrSwatch(t, 14)}<span><b style="font-weight:500">${esc(threatName(t))}</b> · tier ${t.tier}${t.site ? " · " + esc(siteName(id, t.site)) : ""}</span></div>`).join("");
+}
+function swatch(evil, size = 16, tier) {
+  const r = size / 2 - 1;
+  return `<svg width="${size}" height="${size}" viewBox="${-size / 2} ${-size / 2} ${size} ${size}" aria-hidden="true" style="flex:none;overflow:visible"><path d="${shapePath(EVILS[evil].shape, r * .8)}" fill="var(--${evil})"/>${tier ? `<text x="0" y="${EVILS[evil].shape === "triangle" ? 2 : 0}" font-size="${size * .55}" font-weight="700" fill="var(--tok-ink)" text-anchor="middle" dominant-baseline="central">${tier}</text>` : ""}</svg>`;
+}
+function thrSwatch(t, size = 16, withTier) {
+  const r = size / 2 - 1;
+  return `<svg width="${size}" height="${size}" viewBox="${-size / 2} ${-size / 2} ${size} ${size}" aria-hidden="true" style="flex:none;overflow:visible"><path d="${shapePath(t.kind === "lesser" ? "hex" : "shield", r * .85)}" fill="${thrColor(t)}"/>${withTier ? `<text x="0" y="0" font-size="${size * .55}" font-weight="700" fill="var(--tok-ink)" text-anchor="middle" dominant-baseline="central">${t.tier}</text>` : ""}</svg>`;
+}
+function showTip(html, evt) {
+  tip.innerHTML = html; tip.hidden = false;
+  const wrap = $("mapwrap").getBoundingClientRect();
+  let x = evt.clientX - wrap.left + 16, y = evt.clientY - wrap.top + 16;
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  if (x + tw > wrap.width - 8) x = evt.clientX - wrap.left - tw - 16;
+  if (y + th > wrap.height - 8) y = evt.clientY - wrap.top - th - 16;
+  tip.style.left = Math.max(6, x) + "px"; tip.style.top = Math.max(6, y) + "px";
+}
+function regionTip(id) {
+  const r = R[id], st = currentState(), here = st[id];
+  const status = here.status ? ` <span class="pill st-${here.status}">${STATUSES[here.status]}</span>` : "";
+  const note = S.notes[id]?.public;
+  return `<h4>${esc(r.name)}</h4><div class="sub">${esc(r.kind === "chapter" ? "Chapter · " + r.band : r.band)}${status}</div><div>${esc(note || r.blurb)}</div><div class="pres">${presenceList(st, id)}</div>${here.note ? `<div class="muted small" style="margin-top:6px">${esc(here.note)}</div>` : ""}<div class="muted small" style="margin-top:6px">Click for the record. Double-click to zoom into the region.</div>`;
+}
+function tokenTip(evil, id, site) {
+  const here = currentState()[id];
+  const t = site ? (here.at[site]?.[evil] || 0) : (here.p[evil] || 0), T = TIERS[t];
+  return `<h4>${EVILS[evil].name}</h4><div class="sub">${site ? "at " + esc(siteName(id, site)) + ", " : "in "}${esc(R[id].name)} · tier ${t}: ${esc(T.name)}</div><div><b style="font-weight:500">Fielded:</b> ${esc(T.fielded)}</div><div><b style="font-weight:500">Reach:</b> ${esc(T.reach)}</div><div><b style="font-weight:500">Approval:</b> ${esc(T.approval)}</div>`;
+}
+function threatTip(tid) {
+  const st = currentState(), id = findThreat(st, tid); if (!id) return "";
+  const t = st[id].threats[tid];
+  const what = t.kind === "lesser" ? LESSER[t.group]?.what : "";
+  return `<h4>${esc(threatName(t))}</h4><div class="sub">${esc(threatKind(t))} · tier ${t.tier} in ${esc(R[id].name)}${t.site ? ", " + esc(siteName(id, t.site)) : ""}</div>${t.note ? `<div>${esc(t.note)}</div>` : ""}${what ? `<div class="muted small" style="margin-top:4px">${esc(what)}</div>` : ""}`;
+}
+function siteTip(region, sid) {
+  const here = currentState()[region], s = sitesFor(region, true).find(x => x.id === sid); if (!s) return "";
+  const f = here.at[sid] || {}, keys = EVIL_ORDER.filter(k => f[k]);
+  const th = Object.values(here.threats).filter(t => t.site === sid);
+  const list = keys.map(k => `<div style="display:flex;gap:6px;align-items:center">${swatch(k, 14)}<span>${EVILS[k].short} · tier ${f[k]}</span></div>`).join("") + th.map(t => `<div style="display:flex;gap:6px;align-items:center">${thrSwatch(t, 14)}<span>${esc(threatName(t))} · tier ${t.tier}</span></div>`).join("");
+  return `<h4>${esc(s.name)}</h4><div class="sub">${esc(R[region].name)}${s.custom ? " · added by a rep" : ""}</div>${s.note ? `<div>${esc(s.note)}</div>` : ""}<div class="pres">${list || `<div class="muted small">Quiet for now.</div>`}</div>`;
+}
+
+/* ---------- Pan, zoom, drag on the whole map ---------- */
+function applyVB() { const v = S.vb; svg.setAttribute("viewBox", `${v.x} ${v.y} ${v.w} ${v.h}`); }
+function svgPoint(evt, s = svg) { const pt = s.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY; return pt.matrixTransform(s.getScreenCTM().inverse()); }
+function zoom(f, cx, cy) {
+  const v = S.vb; const nw = Math.max(260, Math.min(W * 1.15, v.w * f)); const k = nw / v.w;
+  cx = cx ?? v.x + v.w / 2; cy = cy ?? v.y + v.h / 2;
+  v.x = cx - (cx - v.x) * k; v.y = cy - (cy - v.y) * k; v.w = nw; v.h = v.h * k; applyVB();
+}
+function animateVB(target, dur, done) {
+  const from = { ...S.vb }, t0 = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - t, 3);
+    for (const k of ["x", "y", "w", "h"]) S.vb[k] = from[k] + (target[k] - from[k]) * e;
+    applyVB();
+    if (t < 1) requestAnimationFrame(step); else done && done();
+  };
+  requestAnimationFrame(step);
+}
+svg.addEventListener("wheel", e => { e.preventDefault(); const p = svgPoint(e); zoom(e.deltaY > 0 ? 1.12 : 1 / 1.12, p.x, p.y); }, { passive: false });
+$("zin").onclick = () => zoom(1 / 1.3); $("zout").onclick = () => zoom(1.3);
+$("zfit").onclick = () => { S.vb = { x: 0, y: 0, w: W, h: H }; applyVB(); };
+let drag = null;
+svg.addEventListener("pointerdown", e => {
+  const city = e.target.closest(".citygrp");
+  if (S.layoutMode && city) { drag = { mode: "city", id: city.dataset.region, el: city, moved: false }; city.classList.add("dragging"); svg.setPointerCapture(e.pointerId); return; }
+  drag = { mode: "pan", sx: e.clientX, sy: e.clientY, vb: { ...S.vb }, moved: false, target: e.target };
+  svg.setPointerCapture(e.pointerId);
+});
+svg.addEventListener("pointermove", e => {
+  if (drag && drag.mode === "pan") {
+    const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    drag.moved = true; svg.classList.add("panning"); tip.hidden = true;
+    const k = Math.max(S.vb.w / svg.clientWidth, S.vb.h / svg.clientHeight); S.vb.x = drag.vb.x - dx * k; S.vb.y = drag.vb.y - dy * k; applyVB(); return;
+  }
+  if (drag && drag.mode === "city") {
+    const p = svgPoint(e); drag.moved = true;
+    S.positions[drag.id] = [Math.round(Math.max(10, Math.min(W - 10, p.x))), Math.round(Math.max(10, Math.min(H - 10, p.y)))];
+    renderMap({ fresh: false }); return;
+  }
+  hoverAt(e);
+});
+svg.addEventListener("pointerup", () => {
+  const d = drag; drag = null; svg.classList.remove("panning");
+  if (!d) return;
+  if (d.mode === "city") { if (d.moved) saveLayout(); return; }
+  if (!d.moved) clickAt(d.target);
+});
+svg.addEventListener("pointerleave", () => { tip.hidden = true; setHover(null); });
+svg.addEventListener("dblclick", e => { const info = targetInfo(document.elementFromPoint(e.clientX, e.clientY) || e.target); if (info && !S.layoutMode) openRegion(info.region); });
+function targetInfo(t) {
+  const tok = t.closest && t.closest(".tok");
+  if (tok && tok.dataset.region) return { kind: "tok", evil: tok.dataset.evil, region: tok.dataset.region };
+  const th = t.closest && t.closest(".thr");
+  if (th && th.dataset.region) return { kind: "thr", tid: th.dataset.tid, region: th.dataset.region };
+  const c = t.closest && (t.closest(".citygrp") || t.closest(".terr"));
+  if (c) return { kind: "region", region: c.dataset.region };
+  return null;
+}
+function setHover(id) {
+  if (S.hover === id) return;
+  svg.querySelectorAll(".terr.hover").forEach(p => p.classList.remove("hover"));
+  S.hover = id;
+  if (id) svg.querySelectorAll(`.terr[data-region="${id}"]`).forEach(p => p.classList.add("hover"));
+}
+function hoverAt(e) {
+  const info = targetInfo(e.target);
+  if (!info) { tip.hidden = true; setHover(null); return; }
+  setHover(info.region);
+  showTip(info.kind === "tok" ? tokenTip(info.evil, info.region) : info.kind === "thr" ? threatTip(info.tid) : regionTip(info.region), e);
+}
+function clickAt(t) { const info = targetInfo(t); if (info) selectRegion(info.region); }
+function selectRegion(id) {
+  if (RV.id && RV.id !== id) { openRegion(id, false); return; }
+  if (S.selected !== id) { S.site = null; S.pendingSite = null; }
+  S.selected = id; S.tab = "region";
+  svg.querySelectorAll(".terr.sel").forEach(p => p.classList.remove("sel"));
+  svg.querySelectorAll(`.terr[data-region="${id}"]`).forEach(p => p.classList.add("sel"));
+  renderSide();
+}
+
+/* ---------- Region view: a zoomed map of one region with its sites ---------- */
+const RV = { id: null, view: null, vb: null, back: null };
+const rsvg = $("rmap");
+function openRegion(id, animate = true) {
+  if (!R[id]) return;
+  stop(); tip.hidden = true;
+  const show = () => {
+    RV.id = id; RV.view = viewOf(id); RV.vb = { x: RV.view.x, y: RV.view.y, w: RV.view.w, h: RV.view.h };
+    S.selected = id; S.site = null; S.siteEdit = false; S.pendingSite = null; S.tab = "region";
+    const rv = $("rview"); rv.hidden = false; rv.classList.remove("enter", "site-edit");
+    if (animate && !reduced) { void rv.offsetWidth; rv.classList.add("enter"); }
+    $("mapwrap").classList.add("rv-open");
+    $("mapwrap").style.setProperty("--rv-ar", `${RV.view.w} / ${RV.view.h}`);
+    renderRegionView({ fresh: false }); renderSide(); syncURL();
+  };
+  if (animate && !reduced && !RV.id) {
+    RV.back = { ...S.vb };
+    const [x, y] = posOf(id), w = 300, h = w * S.vb.h / S.vb.w;
+    animateVB({ x: x - w / 2, y: y - h / 2, w, h }, 420, show);
+  } else show();
+}
+function closeRegion() {
+  if (!RV.id) return;
+  const id = RV.id;
+  RV.id = null; S.siteEdit = false; S.pendingSite = null; S.site = null;
+  $("rview").hidden = true; $("mapwrap").classList.remove("rv-open"); tip.hidden = true;
+  if (RV.back) { const b = RV.back; RV.back = null; if (reduced) { S.vb = b; applyVB(); } else animateVB(b, 420); }
+  S.selected = id; renderSide(); syncURL();
+}
+function syncURL() {
+  try { const u = new URL(location.href); if (RV.id) u.searchParams.set("region", RV.id); else u.searchParams.delete("region"); history.replaceState(null, "", u); } catch (e) {}
+}
+function applyRVB() { const v = RV.vb; rsvg.setAttribute("viewBox", `${v.x} ${v.y} ${v.w} ${v.h}`); }
+function rzoom(f, cx, cy) {
+  const v = RV.vb, base = RV.view; const nw = Math.max(base.w / 7, Math.min(base.w * 1.2, v.w * f)); const k = nw / v.w;
+  cx = cx ?? v.x + v.w / 2; cy = cy ?? v.y + v.h / 2;
+  v.x = cx - (cx - v.x) * k; v.y = cy - (cy - v.y) * k; v.w = nw; v.h = v.h * k; applyRVB();
+}
+function renderRegionView(opts = {}) {
+  if (!RV.id) return;
+  const id = RV.id, r = R[id], v = RV.view, st = currentState(), here = st[id], prev = prevForView()[id];
+  const ev = currentEvent(), fresh = opts.fresh !== false && !reduced;
+  $("rv-name").textContent = r.name;
+  $("rv-band").textContent = (r.kind === "chapter" ? "Chapter · " + r.band : r.band) + (v.crop ? " · from the main map" : " · regional map");
+  $("rv-status").innerHTML = here.status ? `<span class="pill st-${here.status}">${STATUSES[here.status]}</span>` : "";
+  $("rview").classList.toggle("site-edit", S.siteEdit);
+  applyRVB();
+  rsvg.innerHTML = "";
+  const u = v.w / 100;
+  const root = el("g", {}, rsvg);
+  el("rect", { x: v.x - v.w * 3, y: v.y - v.h * 3, width: v.w * 7, height: v.h * 7, fill: "var(--sea-deep)" }, root);
+  if (v.crop) {
+    el("image", { href: MAIN_SRC, x: 0, y: 0, width: W, height: H, preserveAspectRatio: "none", class: "rv-art" }, root);
+    const c = cellOf(id); if (c) el("path", { d: polyD(c.poly), class: "rv-cell", "clip-path": clipOf(id), "stroke-width": u * .5, "stroke-dasharray": `${u * 1.6} ${u * 1.2}` }, root);
+  } else el("image", { href: v.src, x: 0, y: 0, width: v.w, height: v.h, preserveAspectRatio: "none", class: "rv-art" }, root);
+  const showNames = $("rv-names").checked;
+  const explicitSites = new Set((ev?.changes || []).filter(c => c.type === "clash" && c.region === id && c.site).map(c => c.site));
+  const sites = sitesFor(id);
+  const known = new Set(sites.map(s => s.id));
+  for (const s of sites) {
+    const [sx, sy] = siteXY(v, s);
+    const forces = here.at[s.id] || {};
+    const fk = EVIL_ORDER.filter(k => forces[k] && !S.hidden.has(k));
+    const th = threatShown() ? Object.values(here.threats).filter(t => t.site === s.id) : [];
+    const busy = fk.length || th.length;
+    const g = el("g", { class: "site" + (busy ? " busy" : "") + (S.site === s.id ? " sel" : ""), "data-site": s.id, transform: `translate(${sx},${sy})` }, root);
+    el("circle", { r: u * 2.4, fill: "transparent" }, g);
+    el("circle", { class: "site-dot", r: u * (busy ? 1 : .75), "stroke-width": u * .3 }, g);
+    if (s.custom || showNames || S.site === s.id) {
+      const t = el("text", { class: "slabel", y: -u * 1.7, "text-anchor": "middle", "font-size": u * 2.3, "stroke-width": u * .65 }, g); t.textContent = s.name;
+    }
+    if (fk.length > 1 || explicitSites.has(s.id)) { const sg = el("g", { class: explicitSites.has(s.id) ? "clash" : "", transform: `translate(${-u * 3.2},${-u * 3.2})` }, g); if (explicitSites.has(s.id)) el("circle", { class: "ring", r: 17 * u * 1.3 / 14 }, sg); swords(sg, u * 1.3); }
+    let i = 0;
+    fk.forEach(k => {
+      const tg = tokenEl(k, forces[k], g);
+      tg.setAttribute("transform", `translate(${u * 3.3 + i * u * 4.3},0) scale(${u * 1.8 / 22})`);
+      tg.dataset.site = s.id;
+      if (S.focus && S.focus !== k) tg.classList.add("dim");
+      const before = prev.at[s.id]?.[k] || 0;
+      if (fresh && !before) tg.classList.add("new"); else if (fresh && forces[k] > before) tg.classList.add("rise");
+      i++;
+    });
+    th.forEach(t => {
+      const tg = threatEl(t, g, 13);
+      tg.setAttribute("transform", `translate(${u * 3.3 + i * u * 4.3},0) scale(${u * 1.7 / 13})`);
+      tg.dataset.region = id;
+      if (fresh && !prev.threats[t.tid]) tg.classList.add("new");
+      i++;
+    });
+  }
+  if (S.pendingSite && S.pendingSite.region === id) {
+    const [sx, sy] = siteXY(v, S.pendingSite);
+    const g = el("g", { class: "site pending sel", transform: `translate(${sx},${sy})` }, root);
+    el("circle", { class: "site-dot", r: u * 1.2, "stroke-width": u * .35 }, g);
+  }
+  // Forces with no site sit in the tray, as do threats whose site was removed.
+  const loose = EVIL_ORDER.filter(k => here.base[k] && !S.hidden.has(k));
+  const looseT = threatShown() ? Object.values(here.threats).filter(t => !t.site || !known.has(t.site)) : [];
+  let tray = `<div class="lbl">Across ${esc(r.name)}</div>`;
+  if (!loose.length && !looseT.length) tray += `<div class="muted">${Object.keys(here.p).length || Object.keys(here.threats).length ? "Every force here is placed at a site." : "No threats in this region at this step."}</div>`;
+  tray += loose.map(k => `<div class="row">${swatch(k, 18, here.base[k])}<span>${EVILS[k].short} · ${esc(TIERS[here.base[k]].name)}, region-wide</span></div>`).join("");
+  tray += looseT.map(t => `<div class="row">${thrSwatch(t, 18, true)}<span>${esc(threatName(t))}${t.site ? " · at a removed site" : " · region-wide"}</span></div>`).join("");
+  $("rv-tray").innerHTML = tray;
+  const hint = $("rv-hint");
+  if (S.siteEdit) { hint.hidden = false; hint.textContent = "Click empty ground to add a site. Drag a site to move it."; }
+  else if (S.draft && S.draft.changes.length) { hint.hidden = false; hint.textContent = "Previewing your draft event"; }
+  else hint.hidden = true;
+}
+let rdrag = null;
+rsvg.addEventListener("wheel", e => { e.preventDefault(); const p = svgPoint(e, rsvg); rzoom(e.deltaY > 0 ? 1.12 : 1 / 1.12, p.x, p.y); }, { passive: false });
+$("rz-in").onclick = () => rzoom(1 / 1.3); $("rz-out").onclick = () => rzoom(1.3);
+$("rz-fit").onclick = () => { RV.vb = { x: RV.view.x, y: RV.view.y, w: RV.view.w, h: RV.view.h }; applyRVB(); };
+$("rv-back").onclick = () => closeRegion();
+rsvg.addEventListener("pointerdown", e => {
+  const site = e.target.closest(".site:not(.pending)");
+  if (S.siteEdit && site && canEditRegion(RV.id)) { rdrag = { mode: "site", id: site.dataset.site, el: site, moved: false }; rsvg.setPointerCapture(e.pointerId); return; }
+  rdrag = { mode: "pan", sx: e.clientX, sy: e.clientY, vb: { ...RV.vb }, moved: false, target: e.target, e };
+  rsvg.setPointerCapture(e.pointerId);
+});
+rsvg.addEventListener("pointermove", e => {
+  if (rdrag && rdrag.mode === "pan") {
+    const dx = e.clientX - rdrag.sx, dy = e.clientY - rdrag.sy;
+    if (!rdrag.moved && Math.hypot(dx, dy) < 5) return;
+    rdrag.moved = true; rsvg.classList.add("panning"); tip.hidden = true;
+    const k = Math.max(RV.vb.w / rsvg.clientWidth, RV.vb.h / rsvg.clientHeight); RV.vb.x = rdrag.vb.x - dx * k; RV.vb.y = rdrag.vb.y - dy * k; applyRVB(); return;
+  }
+  if (rdrag && rdrag.mode === "site") {
+    const p = svgPoint(e, rsvg), v = RV.view; rdrag.moved = true;
+    rdrag.x = Math.max(0, Math.min(1, (p.x - v.x) / v.w)); rdrag.y = Math.max(0, Math.min(1, (p.y - v.y) / v.h));
+    rdrag.el.setAttribute("transform", `translate(${p.x},${p.y})`); return;
+  }
+  const info = rTarget(e.target);
+  if (!info) { tip.hidden = true; return; }
+  showTip(info.kind === "tok" ? tokenTip(info.evil, RV.id, info.site) : info.kind === "thr" ? threatTip(info.tid) : siteTip(RV.id, info.site), e);
+});
+rsvg.addEventListener("pointerup", async e => {
+  const d = rdrag; rdrag = null; rsvg.classList.remove("panning");
+  if (!d) return;
+  if (d.mode === "site") {
+    if (d.moved) await saveSite({ id: d.id, region: RV.id, x: +d.x.toFixed(4), y: +d.y.toFixed(4) });
+    S.site = d.id; renderRegionView({ fresh: false }); renderSide(); return;
+  }
+  if (d.moved) return;
+  const info = rTarget(d.target);
+  if (info && info.site) { S.site = info.site; S.pendingSite = null; }
+  else if (info && info.kind === "thr") { const t = currentState()[RV.id].threats[info.tid]; S.site = t?.site || null; }
+  else if (S.siteEdit && canEditRegion(RV.id)) { const p = svgPoint(e, rsvg), v = RV.view; S.pendingSite = { region: RV.id, x: +((p.x - v.x) / v.w).toFixed(4), y: +((p.y - v.y) / v.h).toFixed(4) }; S.site = null; }
+  else S.site = null;
+  S.tab = "region"; renderRegionView({ fresh: false }); renderSide();
+  if (S.pendingSite) setTimeout(() => $("ps-name")?.focus(), 0);
+});
+rsvg.addEventListener("pointerleave", () => { tip.hidden = true; });
+function rTarget(t) {
+  const site = t.closest && t.closest(".site:not(.pending)");
+  const tok = t.closest && t.closest(".tok");
+  if (tok) return { kind: "tok", evil: tok.dataset.evil, site: tok.dataset.site };
+  const th = t.closest && t.closest(".thr");
+  if (th) return { kind: "thr", tid: th.dataset.tid, site: site?.dataset.site };
+  if (site) return { kind: "site", site: site.dataset.site };
+  return null;
+}
+
+/* ---------- Chrome: header, timeline, legend ---------- */
+function renderChrome() {
+  const max = VIS_RANK[maxLayer()];
+  document.querySelectorAll("#layerseg button").forEach(b => { b.hidden = VIS_RANK[b.dataset.layer] > max; b.setAttribute("aria-pressed", String(b.dataset.layer === S.layer)); });
+  $("layerseg").hidden = max === 0; $("layer-lbl").hidden = max === 0;
+  const n = EV.length, sc = $("scrub");
+  sc.max = Math.max(0, n - 1); sc.value = S.idx; sc.disabled = n < 2;
+  const ev = currentEvent();
+  $("sub-step").textContent = n ? (S.draft && S.draft.changes.length ? "Draft preview." : `Step ${S.idx + 1} of ${n}.`) : "";
+  const ticks = $("ticks"); ticks.innerHTML = "";
+  if (n > 1) EV.forEach((e, i) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = i + 1; b.title = e.title;
+    b.style.left = (i / (n - 1) * 100) + "%"; if (i === S.idx) b.className = "on";
+    b.onclick = () => { stop(); goTo(i, i === S.idx + 1); }; ticks.appendChild(b);
+  });
+  const now = $("tl-now");
+  if (!ev) { now.innerHTML = `<h2>No story events yet</h2><p class="muted">Open the Story log to record the first movement.</p>`; }
+  else {
+    const ch = ev.chapter && R[ev.chapter] ? R[ev.chapter].name : "National";
+    now.innerHTML = `<h2>${esc(ev.title || "Untitled event")}</h2><span class="meta">${esc(ev.when || "")}${ev.when ? " · " : ""}${esc(ch)} · <span class="pill vis-${ev.visibility || "public"}">${VIS[ev.visibility || "public"]}</span>${ev.example ? ` <span class="pill ex">Example</span>` : ""}</span>${ev.summary ? `<p>${esc(ev.summary)}</p>` : ""}${describeChanges(ev)}`;
+  }
+  $("tl-play").textContent = S.playing ? "❚❚" : "▶";
+  $("tl-play").setAttribute("aria-label", S.playing ? "Pause" : "Play the story");
+  ["tl-first", "tl-prev"].forEach(id => $(id).disabled = S.idx <= 0);
+  $("tl-next").disabled = S.idx >= n - 1;
+  $("tl-play").disabled = n < 2;
+  renderWho();
+  renderSide();
+}
+function describeChanges(ev) {
+  const at = (region, site) => (R[region]?.name || "?") + (site ? " (" + siteName(region, site) + ")" : "");
+  const before = (() => { const i = EV.indexOf(ev); return i > 0 ? STATES[i - 1] : ev === S.draft ? draftBaseState() : blankState(); })();
+  const parts = (ev.changes || []).map(c => {
+    if (c.type === "set") return `${EVILS[c.evil]?.short || "?"} ${+c.tier ? "at tier " + c.tier : c.all ? "withdraws entirely from" : "withdraws"} in ${at(c.region, c.site)}`.replace("withdraws entirely from in", "withdraws entirely from");
+    if (c.type === "move") return `${EVILS[c.evil]?.short || "?"} advances ${at(c.from, c.fromSite)} → ${at(c.to, c.toSite)}${c.keep ? " (holding its ground behind)" : ""}`;
+    if (c.type === "clash") return `${EVILS[c.a]?.short || "?"} clashes with ${EVILS[c.b]?.short || "?"} at ${at(c.region, c.site)}${c.note ? ": " + c.note : ""}`;
+    if (c.type === "status") return `${R[c.region]?.name || "?"} is ${(STATUSES[c.status] || "clear").toLowerCase()}${c.note ? ": " + c.note : ""}`;
+    if (c.type === "threat") {
+      const wasR = findThreat(before, c.tid), old = wasR ? before[wasR].threats[c.tid] : null;
+      const nm = c.name || old?.name || threatName(c);
+      if (c.remove) return `${nm} is gone${wasR ? " from " + R[wasR].name : ""}${c.note ? ": " + c.note : ""}`;
+      return `${nm} ${old ? "now" : "appears"} at tier ${c.tier || old?.tier || 1} in ${at(c.region, c.site)}`;
+    }
+    return "";
+  }).filter(Boolean);
+  return parts.length ? `<p class="muted small" style="font-size:13px">${parts.map(esc).join(" · ")}</p>` : "";
+}
+function renderLegend() {
+  $("legend").innerHTML = EVIL_ORDER.map(k => `<div class="row">${swatch(k, 15, 2)} ${EVILS[k].short}</div>`).join("") +
+    `<div class="row">${thrSwatch({ kind: "lesser", tier: 1 }, 15, true)} Lesser Evil</div><div class="row">${thrSwatch({ kind: "other", tier: 1 }, 15, true)} Other threat</div>` +
+    `<div class="row"><svg width="16" height="16" viewBox="-8 -8 16 16" aria-hidden="true"><g class="swords" transform="scale(.5)"><circle r="14"/><line x1="-8" y1="-8" x2="8" y2="8"/><line x1="8" y1="-8" x2="-8" y2="8"/></g></svg> Contested</div>` +
+    `<div class="row"><svg width="16" height="16" viewBox="-8 -8 16 16" aria-hidden="true"><circle r="6" fill="none" stroke="var(--bad)" stroke-width="2.5"/></svg> Besieged</div>` +
+    `<div class="row muted" style="grid-column:1/-1">Numbers are Power Scale tiers. Double-click a region to zoom in.</div>`;
+}
+
+/* ---------- Side panel ---------- */
+function renderSide() {
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)));
+  ["threats", "region", "log"].forEach(t => $("pane-" + t).hidden = t !== S.tab);
+  if (S.tab === "threats") renderThreats();
+  if (S.tab === "region") renderRegion();
+  if (S.tab === "log") renderLog();
+}
+function strength(st, k) { let s = 0, regs = []; for (const id in st) if (st[id].p[k]) { s += st[id].p[k]; regs.push(id); } return { s, regs }; }
+function renderThreats() {
+  const st = currentState(), prev = prevForView();
+  const maxS = Math.max(8, ...EVIL_ORDER.map(k => strength(st, k).s));
+  const pane = $("pane-threats");
+  const lesser = allThreats(st).sort((a, b) => b.tier - a.tier);
+  pane.innerHTML = `<div class="note">Strength adds up every tier the evil holds on the map at this step. Toggle an evil to hide it, or focus to dim the rest.</div>` + EVIL_ORDER.map(k => {
+    const E = EVILS[k], { s, regs } = strength(st, k), ps = strength(prev, k).s, d = s - ps;
+    const trend = d > 0 ? `<span class="trend-up">▲ ${d}</span>` : d < 0 ? `<span class="trend-down">▼ ${-d}</span>` : `<span>steady</span>`;
+    const on = !S.hidden.has(k);
+    const fig = S.layer === "public" ? "Unknown to players" : E.figure;
+    return `<div class="evil ${on ? "" : "off"}">
+      <div class="evil-head">${swatch(k, 26)}<div class="grow"><div class="nm">${E.name}</div><div class="tg">${E.tagline} · “${esc(E.saying)}”</div></div>
+        <button type="button" class="eye" data-eye="${k}" aria-pressed="${on}">${on ? "Shown" : "Hidden"}</button></div>
+      <div class="meter"><span>Strength ${s}</span><span class="bar"><i style="width:${s / maxS * 100}%;background:var(--${k})"></i></span>${trend}</div>
+      <div class="chips">${regs.length ? regs.map(id => `<button type="button" class="chip" data-goreg="${id}">${esc(R[id].name)} · ${st[id].p[k]}</button>`).join("") : `<span class="muted small">Not on the map at this step.</span>`}</div>
+      <details><summary>Dossier</summary><dl style="margin-top:6px">
+        <dt>Figurehead</dt><dd>${esc(fig)}</dd><dt>Wants</dt><dd>${esc(E.wants)}</dd><dt>Presses</dt><dd>${esc(E.presses)}</dd>
+        <dt>On field</dt><dd>${esc(E.feel)}</dd><dt>Counterplay</dt><dd>${esc(E.counter)}</dd><dt>Defectors</dt><dd>${esc(E.defectors)}</dd></dl></details>
+      <div class="btnrow"><button type="button" class="btn" data-focus="${k}" aria-pressed="${S.focus === k}">${S.focus === k ? "Clear focus" : "Focus on map"}</button></div>
+    </div>`;
+  }).join("") + `<div><h5>Lesser evils and other threats</h5>${lesser.length ? `<div class="thrlist">${lesser.map(t => `<div class="thrrow">${thrSwatch(t, 20, true)}<div class="t">${esc(threatName(t))}<small>${esc(threatKind(t))}</small></div><button type="button" class="chip" data-goreg="${t.region}">${esc(R[t.region].name)}</button></div>`).join("")}</div>` : `<div class="muted small">None on the map at this step. Reps add them from a region's page or the Story log.</div>`}</div>`;
+}
+function tierRow(k, total, own, ctrlAttrs, sub) {
+  const ctrl = ctrlAttrs ? `<span class="stepper" role="group" aria-label="${EVILS[k].short} tier"><button type="button" ${ctrlAttrs} data-d="-1" aria-label="Lower tier">−</button><span>${own}</span><button type="button" ${ctrlAttrs} data-d="1" aria-label="Raise tier">+</button></span>` : `<b>${total || "–"}</b>`;
+  return `<div class="presrow">${swatch(k, 20)}<div class="t">${EVILS[k].name}<small>${sub}</small></div>${ctrl}</div>`;
+}
+function threatRows(list, regionId, editing) {
+  if (!list.length) return "";
+  return `<div class="thrlist">${list.map(t => `<div class="thrrow">${thrSwatch(t, 20, true)}<div class="t">${esc(threatName(t))}<small>${esc(threatKind(t))} · tier ${t.tier}: ${esc(TIERS[t.tier].name)}${t.site ? " · " + esc(siteName(regionId, t.site)) : ""}${t.note ? " · " + esc(t.note) : ""}</small></div>${editing ? `<span class="acts"><button type="button" class="btn" data-thrchg="${t.tid}">Change</button><button type="button" class="btn" data-thrgone="${t.tid}">Gone</button></span>` : ""}</div>`).join("")}</div>`;
+}
+function renderRegion() {
+  const pane = $("pane-region");
+  if (!S.selected) { pane.innerHTML = `<div class="empty">Click a town, a front or a sea on the map to see who threatens it, its condition and its history. Double-click to zoom into the region's own map.</div>`; return; }
+  const r = R[S.selected], st = currentState(), here = st[r.id];
+  const editing = canDraft() && !S.layoutMode;
+  const regionEdit = canEditRegion(r.id);
+  const inView = RV.id === r.id;
+  const sites = sitesFor(r.id, true);
+  const site = S.site ? sites.find(x => x.id === S.site) : null;
+  const note = S.notes[r.id] || {};
+  const statusPill = here.status ? `<span class="pill st-${here.status}">${STATUSES[here.status]}</span>` : `<span class="pill st-holding">Holding</span>`;
+  let html = `<div class="region"><div class="lbl">${esc(r.kind === "chapter" ? "Chapter · " + r.band : r.band)}</div><h3>${esc(r.name)}</h3><div style="margin-top:6px">${statusPill}${here.note ? ` <span class="small muted">${esc(here.note)}</span>` : ""}</div>
+    <p style="margin:8px 0 0">${esc(r.blurb)}</p></div>
+    <div class="btnrow">${inView ? `<button type="button" class="btn primary" data-closereg="1">← Back to the whole map</button>` : `<button type="button" class="btn primary" data-openreg="${r.id}">Zoom into ${esc(r.name)}</button>`}
+    ${inView && regionEdit ? `<button type="button" class="btn big" id="site-edit" aria-pressed="${S.siteEdit}">${S.siteEdit ? "Done editing sites" : "Edit sites"}</button>` : ""}</div>`;
+  // Pending new site
+  if (S.pendingSite && S.pendingSite.region === r.id && regionEdit) {
+    html += `<div class="sitebox"><h5>New site</h5><input id="ps-name" placeholder="Name, e.g. Old Mill ford" aria-label="Site name"><input id="ps-note" placeholder="Short description (optional)" aria-label="Site description"><div class="btnrow"><button type="button" class="btn primary" id="ps-save">Add site</button><button type="button" class="btn big" id="ps-cancel">Cancel</button></div></div>`;
+  }
+  // Selected site
+  if (site) {
+    const f = here.at[site.id] || {};
+    const th = Object.values(here.threats).filter(t => t.site === site.id);
+    html += `<div class="sitebox"><div class="lbl">Site in ${esc(r.name)}</div><h3 style="font-size:20px">${esc(site.name)}</h3>${site.note ? `<p style="margin:0">${esc(site.note)}</p>` : ""}
+      <div>${EVIL_ORDER.map(k => (f[k] || editing) ? tierRow(k, f[k] || 0, f[k] || 0, editing ? `data-step="${k}" data-site="${site.id}"` : "", f[k] ? `Tier ${f[k]}: ${esc(TIERS[f[k]].name)}` : "Not here") : "").join("") || `<div class="muted small">No External Evil at this site.</div>`}</div>
+      ${threatRows(th, r.id, editing)}
+      ${editing ? `<div class="btnrow"><button type="button" class="btn" data-addthr="${site.id}">+ Lesser evil or threat here</button><button type="button" class="btn" data-addclash="${site.id}">+ Clash here</button></div>` : ""}
+      ${S.siteEdit && regionEdit ? `<div class="field"><label class="lbl" for="se-name">Rename</label><input id="se-name" value="${esc(site.name)}"></div><div class="field"><label class="lbl" for="se-note">Description</label><input id="se-note" value="${esc(site.note || "")}"></div><div class="btnrow"><button type="button" class="btn" id="se-save">Save site</button><button type="button" class="btn danger" id="se-del">${site.custom ? "Delete site" : "Hide site"}</button></div>` : ""}
+      <div class="btnrow"><button type="button" class="btn" data-unsite="1">Close site</button></div></div>`;
+  }
+  // Story notes for the region
+  const canStory = VIS_RANK[S.layer] >= 1;
+  if (regionEdit) {
+    html += `<div class="notebox"><h5>Current situation</h5><label class="lbl" for="n-pub">For players</label><textarea id="n-pub" placeholder="What players know about this region right now">${esc(note.public || "")}</textarea>
+      <label class="lbl" for="n-story">For story teams and the NST</label><textarea id="n-story" placeholder="Hooks, plans and things players haven't found yet">${esc(note.story || "")}</textarea>
+      <div class="btnrow"><button type="button" class="btn primary" id="n-save">Save notes</button>${note.updatedBy ? `<span class="note">Last updated by ${esc(note.updatedBy)}${note.updatedAt ? ", " + esc(new Date(note.updatedAt).toLocaleDateString()) : ""}</span>` : ""}</div></div>`;
+  } else if (note.public || (canStory && note.story)) {
+    html += `<div class="notebox"><h5>Current situation</h5>${note.public ? `<p>${esc(note.public)}</p>` : ""}${canStory && note.story ? `<div class="lbl">Story team notes</div><p>${esc(note.story)}</p>` : ""}${note.updatedBy ? `<span class="note">Updated by ${esc(note.updatedBy)}</span>` : ""}</div>`;
+  }
+  // Region totals
+  const rows = EVIL_ORDER.map(k => {
+    const total = here.p[k] || 0, own = here.base[k] || 0;
+    const placed = Object.entries(here.at).filter(([, f]) => f[k]).map(([sid, f]) => `${siteName(r.id, sid)} (${f[k]})`);
+    const sub = total ? `Tier ${total}: ${esc(TIERS[total].name)} · ${esc(TIERS[total].approval)}${placed.length ? `<br>At ${esc(placed.join(", "))}${own ? `; region-wide ${own}` : ""}` : ""}` : "Not present";
+    return tierRow(k, total, own, editing ? `data-step="${k}"` : "", sub);
+  }).join("");
+  html += `<div><h5>External Evils here</h5>${rows}${editing ? `<div class="btnrow" style="margin-top:8px"><label class="small" for="st-sel">Condition</label><select id="st-sel" class="btn">${["none", ...Object.keys(STATUSES)].map(s => `<option value="${s}" ${(here.status || "none") === s ? "selected" : ""}>${s === "none" ? "Holding (clear)" : STATUSES[s]}</option>`).join("")}</select></div><div class="note">Steppers here set region-wide strength. To place a force at a site, zoom in and click the site. Changes go into a draft event in the Story log; nothing is saved until you add it to the story.</div>` : ""}</div>`;
+  const th = Object.values(here.threats).sort((a, b) => b.tier - a.tier);
+  html += `<div><h5>Lesser evils and other threats</h5>${threatRows(th, r.id, editing) || `<div class="muted small">None here at this step.</div>`}${editing ? `<div class="btnrow" style="margin-top:6px"><button type="button" class="btn" data-addthr="">+ Add a lesser evil or threat</button></div>` : ""}</div>`;
+  if (r.gov) html += `<div class="region"><h5>The town</h5><dl><dt>Governance</dt><dd>${esc(r.gov)}</dd><dt>Economy</dt><dd>${esc(r.econ)}</dd><dt>Tensions</dt><dd>${esc(r.tens)}</dd></dl></div>`;
+  if (r.orbit && r.orbit.length) html += `<div><h5>Regional orbit</h5><div class="chips">${r.orbit.map(o => `<span class="chip">${esc(o)}</span>`).join("")}</div></div>`;
+  const hist = [];
+  const upto = S.draft && S.draft.changes.length ? EV.length - 1 : S.idx;
+  for (let i = 0; i <= upto; i++) {
+    const e = EV[i]; if (!e) continue;
+    const touches = (e.changes || []).some(c => c.region === r.id || c.from === r.id || c.to === r.id) || e.chapter === r.id;
+    if (touches) hist.push(`<button type="button" data-jump="${i}"><b>${i + 1}. ${esc(e.title)}</b><br><span class="muted">${esc(e.when || "")}</span></button>`);
+  }
+  html += `<div><h5>History to this step</h5><div class="hist">${hist.length ? hist.join("") : `<span class="muted small">Nothing has happened here yet.</span>`}</div></div>`;
+  pane.innerHTML = html;
+}
+
+/* ---------- Draft editing ---------- */
+function defaultChapter() { const mine = myChapters(); if (isNST()) return "national"; return mine[0] || "national"; }
+function newDraft() { return { id: null, title: "", when: "", chapter: defaultChapter(), visibility: "story", summary: "", changes: [] }; }
+function ensureDraft() { if (!S.draft) S.draft = newDraft(); return S.draft; }
+function claimChapter(dr, id) { if (R[id]?.kind === "chapter" && dr.chapter === "national" && (isNST() || myChapters().includes(id))) dr.chapter = id; }
+function stepTier(evil, d, site) {
+  const dr = ensureDraft(), id = S.selected;
+  const cur = applyEvent(draftBaseState(), dr)[id];
+  const now = site ? (cur.at[site]?.[evil] || 0) : (cur.base[evil] || 0);
+  const t = Math.max(0, Math.min(5, now + d));
+  const ex = dr.changes.find(c => c.type === "set" && c.region === id && c.evil === evil && (c.site || "") === (site || ""));
+  if (ex) ex.tier = t; else dr.changes.push(site ? { type: "set", evil, region: id, site, tier: t } : { type: "set", evil, region: id, tier: t });
+  claimChapter(dr, id);
+  refreshAll(false);
+}
+function setStatus(v) {
+  const dr = ensureDraft(); const id = S.selected;
+  const ex = dr.changes.find(c => c.type === "status" && c.region === id);
+  if (ex) ex.status = v; else dr.changes.push({ type: "status", region: id, status: v, note: "" });
+  claimChapter(dr, id);
+  refreshAll(false);
+}
+const newTid = () => "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+function addThreat(site) {
+  const dr = ensureDraft(), id = S.selected || "sudenburg";
+  const home = Object.keys(LESSER).find(k => LESSER[k].home === id);
+  dr.changes.push({ type: "threat", tid: newTid(), kind: "lesser", group: home || "forsworn", name: "", tier: 1, region: id, site: site || "", note: "" });
+  claimChapter(dr, id);
+  S.tab = "log"; refreshAll(false); toast("Fill in the threat in the draft below");
+}
+function editThreat(tid, gone) {
+  const st = currentState(), id = findThreat(st, tid); if (!id) return;
+  const t = st[id].threats[tid], dr = ensureDraft();
+  const ex = dr.changes.find(c => c.type === "threat" && c.tid === tid);
+  if (ex) { if (gone) ex.remove = true; }
+  else dr.changes.push({ type: "threat", tid, kind: t.kind, group: t.group, name: t.name, tier: t.tier, region: id, site: t.site || "", note: t.note || "", ...(gone ? { remove: true } : {}) });
+  claimChapter(dr, id);
+  if (!gone) { S.tab = "log"; toast("Change the threat in the draft below"); }
+  refreshAll(false);
+}
+function draftWarnings(dr) {
+  const out = [], base = draftBaseState();
+  let running = cloneState(base);
+  for (const c of dr.changes) {
+    if (c.type === "set" || c.type === "move") {
+      const rid = c.type === "set" ? c.region : c.to;
+      const before = running[rid]?.p[c.evil] || 0;
+      const nextS = applyEvent(running, { changes: [c] });
+      const after = nextS[rid]?.p[c.evil] || 0;
+      const nm = `${EVILS[c.evil]?.short} in ${R[rid]?.name}`;
+      if (after - before > 1) out.push({ t: `${nm} jumps from tier ${before} to ${after}. The guidebook climbs one tier at a time and gives players an event to respond.` });
+      if (after > before && after === 5) out.push({ hard: true, nst: true, t: `${nm} reaches tier 5: a national event where the figurehead appears. NST only.` });
+      else if (after > before && after === 4) out.push({ hard: true, nst: true, t: `${nm} at tier 4 is a campaign. Brett or Andrew must approve it.` });
+      else if (after > before && after === 3 && R[rid]?.kind === "chapter") out.push({ t: `${nm} at tier 3 is an incursion. The chapter's NST rep signs off, and it is limited to one per evil per chapter per season.` });
+      if (c.type === "move" && !(c.fromSite ? running[c.from]?.at[c.fromSite]?.[c.evil] : running[c.from]?.p[c.evil])) out.push({ t: `${EVILS[c.evil]?.short} has no force in ${R[c.from]?.name}${c.fromSite ? " at " + siteName(c.from, c.fromSite) : ""} to move from at this point.` });
+    }
+    if (c.type === "clash" && c.a === c.b) out.push({ t: "A clash needs two different evils." });
+    if (c.type === "threat" && !c.remove) {
+      const wasR = findThreat(running, c.tid), old = wasR ? running[wasR].threats[c.tid] : null, nm = c.name || threatName(c);
+      if (c.kind === "lesser" && +c.tier > 3) out.push({ hard: true, nst: true, t: `Lesser Evils stop at tier 3. Past that the NST decides whether ${nm} becomes something greater.` });
+      else if (+c.tier === 3 && (!old || old.tier < 3)) out.push({ t: `${nm} at tier 3 needs the chapter's NST rep to sign off.` });
+      if (old && +c.tier - old.tier > 1) out.push({ t: `${nm} jumps from tier ${old.tier} to ${c.tier}. Lesser Evils grow one step per season at most.` });
+      const home = c.kind === "lesser" ? LESSER[c.group]?.home : null;
+      if (home && home !== c.region) out.push({ t: `${LESSER[c.group].name} belongs to ${R[home].name}. Talk to ${R[home].name}'s NST rep before using them.` });
+      if (c.kind === "other" && !String(c.name || "").trim()) out.push({ t: "Give this threat a name so players and other chapters can tell it apart." });
+    }
+    running = applyEvent(running, { changes: [c] });
+  }
+  const evilsAtT2 = new Set(); dr.changes.forEach(c => { const rid = c.region || c.to; const t = running[rid]?.p[c.evil]; if (t === 2 && c.evil) evilsAtT2.add(c.evil); });
+  if (evilsAtT2.size > 1) out.push({ t: "More than one External Evil at pocket-problem level in one event. The guidebook allows one per event so players can tell them apart." });
+  if (!isNST() && dr.chapter !== "national" && !myChapters().includes(dr.chapter)) out.push({ hard: true, nst: true, t: "You can only record events for your own chapter." });
+  if (!isNST() && dr.chapter === "national") out.push({ hard: true, nst: true, t: "National events are recorded by the NST. Pick your chapter." });
+  return out;
+}
+const opt = (v, l, sel) => `<option value="${esc(v)}" ${String(sel ?? "") === String(v) ? "selected" : ""}>${esc(l)}</option>`;
+function regionOptions(sel, filter) { return REGIONS.filter(filter || (() => true)).map(r => opt(r.id, r.name, sel)).join(""); }
+function siteOptions(region, sel) { return opt("", "Region-wide (no site)", sel) + sitesFor(region).map(s => opt(s.id, s.name, sel)).join(""); }
+function evilOptions(sel) { return EVIL_ORDER.map(k => opt(k, EVILS[k].short, sel)).join(""); }
+function tierOptions(sel, min = 0, max = 5) { return TIERS.filter(t => t.n >= min && t.n <= max).map(t => opt(t.n, `${t.n} · ${t.name}`, +sel)).join(""); }
+function changeEditor(c, i) {
+  const typeSel = `<select data-ci="${i}" data-f="type" aria-label="Kind of change">${[["set", "Set presence"], ["move", "Advance / move"], ["clash", "Clash between evils"], ["status", "Region condition"], ["threat", "Lesser evil or other threat"]].map(([v, l]) => opt(v, l, c.type)).join("")}</select>`;
+  let body = "";
+  if (c.type === "set") body = `<select data-ci="${i}" data-f="evil" aria-label="Evil">${evilOptions(c.evil)}</select><select data-ci="${i}" data-f="tier" aria-label="Tier">${tierOptions(c.tier)}</select><select data-ci="${i}" data-f="region" aria-label="Region">${regionOptions(c.region)}</select><select data-ci="${i}" data-f="site" aria-label="Site">${siteOptions(c.region, c.site || "")}</select>${!c.site && !+c.tier ? `<label class="ck"><input type="checkbox" data-ci="${i}" data-f="all" ${c.all ? "checked" : ""}> Also clear it from every site in the region</label>` : ""}`;
+  if (c.type === "move") body = `<select data-ci="${i}" data-f="evil" aria-label="Evil">${evilOptions(c.evil)}</select><select data-ci="${i}" data-f="tier" aria-label="Arriving tier">${tierOptions(c.tier || 1, 1)}</select><select data-ci="${i}" data-f="from" aria-label="From">${regionOptions(c.from)}</select><select data-ci="${i}" data-f="fromSite" aria-label="From site">${siteOptions(c.from, c.fromSite || "")}</select><select data-ci="${i}" data-f="to" aria-label="To">${regionOptions(c.to)}</select><select data-ci="${i}" data-f="toSite" aria-label="To site">${siteOptions(c.to, c.toSite || "")}</select><label class="ck"><input type="checkbox" data-ci="${i}" data-f="keep" ${c.keep ? "checked" : ""}> Keep a force where it came from</label>`;
+  if (c.type === "clash") body = `<select data-ci="${i}" data-f="a" aria-label="First evil">${evilOptions(c.a)}</select><select data-ci="${i}" data-f="b" aria-label="Second evil">${evilOptions(c.b)}</select><select data-ci="${i}" data-f="region" aria-label="Where">${regionOptions(c.region)}</select><select data-ci="${i}" data-f="site" aria-label="Site">${siteOptions(c.region, c.site || "")}</select><input class="full" data-ci="${i}" data-f="note" placeholder="What happened between them" value="${esc(c.note || "")}">`;
+  if (c.type === "status") body = `<select data-ci="${i}" data-f="region" aria-label="Region">${regionOptions(c.region)}</select><select data-ci="${i}" data-f="status" aria-label="Condition">${["none", ...Object.keys(STATUSES)].map(s => opt(s, s === "none" ? "Holding (clear)" : STATUSES[s], c.status || "none")).join("")}</select><input class="full" data-ci="${i}" data-f="note" placeholder="Short note (optional)" value="${esc(c.note || "")}">`;
+  if (c.type === "threat") {
+    const before = draftBaseState(), existing = findThreat(before, c.tid);
+    const pick = `<select class="full" data-ci="${i}" data-f="tid" aria-label="Which threat">${opt("__new", "A new threat", existing ? "" : "__new")}${allThreats(before).map(t => opt(t.tid, `${threatName(t)} (${R[t.region].name})`, c.tid)).join("")}</select>`;
+    const groups = c.kind === "lesser" ? Object.keys(LESSER).map(k => opt(k, LESSER[k].name, c.group)).join("") : Object.keys(OTHER).map(k => opt(k, OTHER[k], c.group)).join("");
+    body = `${pick}<select data-ci="${i}" data-f="kind" aria-label="Kind">${opt("lesser", "Lesser Evil", c.kind)}${opt("other", "Other threat", c.kind)}</select><select data-ci="${i}" data-f="group" aria-label="${c.kind === "lesser" ? "Which Lesser Evil" : "Category"}">${groups}</select>
+      <input class="full" data-ci="${i}" data-f="name" placeholder="${c.kind === "lesser" ? "Band or leader name (optional)" : "Name, e.g. the Blackmaw raiders"}" value="${esc(c.name || "")}">
+      <select data-ci="${i}" data-f="tier" aria-label="Tier">${tierOptions(c.tier || 1, 1, c.kind === "lesser" && !isNST() ? 3 : 5)}</select><select data-ci="${i}" data-f="region" aria-label="Region">${regionOptions(c.region)}</select>
+      <select class="full" data-ci="${i}" data-f="site" aria-label="Site">${siteOptions(c.region, c.site || "")}</select>
+      <input class="full" data-ci="${i}" data-f="note" placeholder="What it is doing" value="${esc(c.note || "")}">
+      ${existing ? `<label class="ck"><input type="checkbox" data-ci="${i}" data-f="remove" ${c.remove ? "checked" : ""}> Defeated or gone (takes it off the map)</label>` : ""}`;
+  }
+  return `<div class="chg"><div class="full" style="padding-right:22px">${typeSel}</div>${body}<button type="button" class="x" data-delc="${i}" aria-label="Remove this change">×</button></div>`;
+}
+function freshChange(type, sel) {
+  sel = sel || S.selected || "sudenburg";
+  if (type === "set") return { type: "set", evil: "pale", region: sel, site: S.site && S.selected === sel ? S.site : "", tier: 1 };
+  if (type === "move") return { type: "move", evil: "gor", from: "wastes", to: sel === "wastes" ? "eisendreieck" : sel, toSite: "", tier: 1, keep: true };
+  if (type === "clash") return { type: "clash", a: "pale", b: "wild", region: sel, site: S.site && S.selected === sel ? S.site : "", note: "" };
+  if (type === "status") return { type: "status", region: sel, status: "threatened", note: "" };
+  const home = Object.keys(LESSER).find(k => LESSER[k].home === sel);
+  return { type: "threat", tid: newTid(), kind: "lesser", group: home || "forsworn", name: "", tier: 1, region: sel, site: S.site && S.selected === sel ? S.site : "", note: "" };
+}
+function renderLog() {
+  const pane = $("pane-log");
+  let html = "";
+  if (S.usingFallback) html += `<div class="empty">${S.loaded ? "The shared story log is empty. The map shows the guidebook's opening positions until the first event is saved." : "Loading the shared story log…"}</div>`;
+  if (canDraft()) {
+    if (!S.draft) html += `<div class="btnrow"><button type="button" class="btn primary" id="d-new">Record a new event</button><span class="note">Or open a region and use its steppers.</span></div>`;
+    else {
+      const dr = S.draft, warns = draftWarnings(dr), blocked = !isNST() && warns.some(w => w.nst);
+      const chapterOpts = (isNST() ? `<option value="national">National</option>` : "") + regionOptions(dr.chapter, r => r.kind === "chapter" && (isNST() || myChapters().includes(r.id)));
+      html += `<div class="draft"><div class="lbl">${dr.id ? "Editing event" : "New event"} · goes ${dr.id ? "in its current place" : "after step " + EV.length}</div>
+        <div class="field"><label class="lbl" for="d-title">Title</label><input id="d-title" value="${esc(dr.title)}" placeholder="e.g. The bells of the barrow road"></div>
+        <div class="row2"><div class="field"><label class="lbl" for="d-when">When</label><input id="d-when" value="${esc(dr.when)}" placeholder="Season, event or date"></div>
+        <div class="field"><label class="lbl" for="d-ch">Chapter</label><select id="d-ch">${chapterOpts}</select></div></div>
+        <div class="field"><label class="lbl" for="d-vis">Who can see it</label><select id="d-vis">${Object.keys(VIS).map(v => opt(v, VIS[v], dr.visibility)).join("")}</select></div>
+        <div class="field"><label class="lbl" for="d-sum">What happened</label><textarea id="d-sum" placeholder="What players saw, did and changed">${esc(dr.summary)}</textarea></div>
+        <div class="lbl">Changes to the map</div>
+        ${dr.changes.map(changeEditor).join("") || `<div class="note">No changes yet. Add one below, or open a region on the map and use its steppers.</div>`}
+        <div class="btnrow"><button type="button" class="btn" data-addc="set">+ Presence</button><button type="button" class="btn" data-addc="move">+ Advance</button><button type="button" class="btn" data-addc="clash">+ Clash</button><button type="button" class="btn" data-addc="status">+ Condition</button><button type="button" class="btn" data-addc="threat">+ Lesser evil or threat</button></div>
+        ${warns.length ? `<div class="warns">${warns.map(w => `<div class="${w.hard ? "hard" : ""}">${esc(w.t)}</div>`).join("")}</div>` : ""}
+        ${blocked ? `<div class="note">This needs the NST. Discard it, or ask Brett or Andrew to record it.</div>` : ""}
+        <div class="btnrow"><button type="button" class="btn primary" id="d-save" ${dr.title.trim() && !blocked ? "" : "disabled"}>${dr.id ? "Save changes" : "Add to the story"}</button><button type="button" class="btn big" id="d-cancel">Discard</button></div></div>`;
+    }
+  } else {
+    html += `<div class="note">${Store.mode === "sheets" ? "Chapter NST reps can sign in with their rep code to record events." : Store.mode === "claude" ? "You can view the story. Ask the map's owner for edit access to record events." : "This copy isn't connected to the shared story sheet yet."}</div>`;
+  }
+  html += `<div class="lbl">The story so far · ${EV.length} step${EV.length === 1 ? "" : "s"} visible to ${VIS[S.layer]}</div>`;
+  html += EV.map((e, i) => {
+    const ch = e.chapter && R[e.chapter] ? R[e.chapter].name : "National";
+    const del = S.confirmDel === e.id, mine = !S.usingFallback && canEditEvent(e);
+    const acts = mine ? (del
+      ? `<button type="button" class="btn danger" data-delok="${e.id}">Delete</button><button type="button" data-delno="1">Keep</button>`
+      : `${isNST() ? `<button type="button" data-up="${i}" aria-label="Move earlier" ${i === 0 ? "disabled" : ""}>↑</button><button type="button" data-down="${i}" aria-label="Move later" ${i === EV.length - 1 ? "disabled" : ""}>↓</button>` : ""}<button type="button" data-edit="${e.id}">Edit</button><button type="button" data-del="${e.id}" aria-label="Delete event">✕</button>`) : "";
+    return `<div class="ev ${i === S.idx && !(S.draft && S.draft.changes.length) ? "cur" : ""}"><div class="n">${i + 1}</div><div style="min-width:0"><button type="button" data-jump="${i}" style="border:0;background:none;padding:0;text-align:left" class="tt">${esc(e.title)}</button>
+      <div class="mm"><span>${esc(e.when || "")}</span><span>${esc(ch)}</span><span class="pill vis-${e.visibility || "public"}">${VIS[e.visibility || "public"]}</span>${e.example ? `<span class="pill ex">Example</span>` : ""}${e.updatedBy ? `<span>by ${esc(e.updatedBy)}</span>` : ""}</div></div><div class="acts">${acts}</div></div>`;
+  }).join("");
+  if (isNST() && !S.usingFallback && S.events.some(e => e.example)) html += `<div class="btnrow"><button type="button" class="btn" id="clear-ex">Remove the example events</button></div>`;
+  if (isNST() && S.usingFallback && S.loaded) html += `<div class="btnrow"><button type="button" class="btn big" id="seed-open">Save the opening positions as step 1</button></div>`;
+  html += `<details class="setup" ${S.layoutMode ? "open" : ""}><summary>Map setup</summary>
+    ${isNST() ? `<div class="btnrow"><button type="button" class="btn big" id="lay-toggle" aria-pressed="${S.layoutMode}">${S.layoutMode ? "Done arranging" : "Arrange places on the map"}</button><button type="button" class="btn" id="lay-reset">Reset positions</button></div>
+    <div class="note">Drag towns, fronts and waters to move them. Territories redraw around them and the change is shared.</div>` : `<div class="note">Arranging the main map is for the NST. Reps can add and move sites inside their own region's map.</div>`}
+    <div class="btnrow"><button type="button" class="btn" id="exp">Export the story as JSON</button></div></details>`;
+  pane.innerHTML = html;
+}
+
+/* ---------- Saving through the store ---------- */
+const clean = o => JSON.parse(JSON.stringify(o));
+async function saveDraft() {
+  const dr = S.draft; if (!dr || !dr.title.trim() || !canDraft()) return;
+  if (!isNST() && draftWarnings(dr).some(w => w.nst)) { toast("This change needs the NST"); return; }
+  const body = clean({ title: dr.title.trim(), when: dr.when.trim(), chapter: dr.chapter || "national", visibility: dr.visibility || "story", summary: dr.summary.trim(),
+    changes: dr.changes.map(c => { const o = { ...c }; if (o.tier !== undefined) o.tier = +o.tier; for (const k of ["site", "fromSite", "toSite"]) if (o[k] === "") delete o[k]; return o; }),
+    updatedBy: Store.me.name || "", updatedAt: new Date().toISOString() });
+  try {
+    if (dr.id) { await Store.saveEvent({ id: dr.id, ...body }); toast("Event updated"); }
+    else {
+      body.order = S.events.reduce((m, e) => Math.max(m, e.order ?? 0), -1) + 1; body.example = false; body.createdAt = body.updatedAt;
+      S.jumpToId = await Store.saveEvent(body); toast("Added to the story");
+    }
+    S.draft = null; refreshAll(false);
+  } catch (e) { toast("Couldn't save: " + (e?.message || "try again")); }
+}
+async function swapOrder(i, j) {
+  const a = EV[i], b = EV[j]; if (!a || !b) return;
+  const all = S.events.slice().sort((x, y) => (x.order ?? 0) - (y.order ?? 0));
+  const ia = all.indexOf(a), ib = all.indexOf(b); [all[ia], all[ib]] = [all[ib], all[ia]];
+  const orders = all.map((e, k) => ({ id: e.id, order: k })).filter((o, k) => all[k].order !== k);
+  try { await Store.reorder(orders); } catch (e) { toast("Couldn't reorder: " + (e?.message || "")); }
+}
+let layoutTimer = null;
+function saveLayout() {
+  clearTimeout(layoutTimer);
+  layoutTimer = setTimeout(async () => { try { await Store.savePositions(S.positions); toast("Map layout saved"); } catch (e) { toast("Couldn't save the layout"); } }, 300);
+}
+async function saveSite(patch) {
+  const cur = S.sites[patch.id] || {};
+  const full = clean({ ...cur, ...patch, updatedBy: Store.me.name || "", updatedAt: new Date().toISOString() });
+  S.sites[patch.id] = full;
+  try { await Store.saveSite(full); } catch (e) { toast("Couldn't save the site: " + (e?.message || "")); }
+}
+
+/* ---------- Header: sign in and embed ---------- */
+function renderWho() {
+  const b = $("who-btn"), m = Store.me;
+  b.hidden = Store.mode === "claude" || EMBED && Store.mode !== "sheets";
+  if (Store.mode === "local") b.textContent = m.role === "viewer" ? "Try editing" : "Stop demo";
+  else b.textContent = m.role === "viewer" ? "Rep sign in" : (m.name || ROLES[m.role].name);
+  const full = new URL(location.href); full.searchParams.delete("embed");
+  $("fullmap").href = full.toString();
+}
+function chapterNames(m) { return m.role === "nst" ? "all chapters" : (m.chapters || []).map(c => R[c]?.name || c).join(", ") || "no chapter yet"; }
+function openPop(kind) {
+  const pop = $("pop");
+  if (!pop.hidden && pop.dataset.kind === kind) { pop.hidden = true; return; }
+  pop.dataset.kind = kind; pop.hidden = false;
+  if (kind === "share") {
+    const u = new URL(location.href); u.search = ""; u.hash = "";
+    u.searchParams.set("embed", "1"); if (RV.id) u.searchParams.set("region", RV.id);
+    const code = `<iframe src="${u.toString()}" title="Abandoned Lands War Map" width="100%" height="860" style="border:0;max-width:1500px" loading="lazy"></iframe>`;
+    pop.innerHTML = `<b>Embed ${RV.id ? "this region" : "the war map"} in a wiki page</b><textarea id="emb-code" readonly>${esc(code)}</textarea><div class="btnrow"><button type="button" class="btn primary" id="emb-copy">Copy code</button><button type="button" class="btn big" id="pop-close">Close</button></div><div class="note">${location.protocol === "file:" ? "This copy is opened from a file. Host the site first, then copy the code from the hosted page." : "Paste it into any wiki or site that accepts iframes. Add &amp;region= with a town's id to open straight onto its map."}</div>`;
+  } else if (kind === "who") {
+    const m = Store.me;
+    if (Store.mode === "local") {
+      pop.innerHTML = m.role === "viewer" ? `<b>Try the editor</b><div class="note">This copy isn't connected to the shared story sheet, so anything you record stays in this browser only. It's for trying things out.</div><div class="btnrow"><button type="button" class="btn primary" id="demo-on">Start demo editing</button><button type="button" class="btn big" id="pop-close">Close</button></div>`
+        : `<b>Demo editing is on</b><div class="note">Changes are saved in this browser only.</div><div class="btnrow"><button type="button" class="btn" id="demo-off">Stop demo</button><button type="button" class="btn danger" id="demo-reset">Clear demo data</button></div>`;
+    } else if (m.role === "viewer") {
+      pop.innerHTML = `<label class="lbl" for="code-in">Rep code</label><input id="code-in" type="password" autocomplete="current-password" placeholder="The code the NST gave you"><div class="btnrow"><button type="button" class="btn primary" id="code-go">Sign in</button><button type="button" class="btn big" id="pop-close">Cancel</button></div><div class="note">Chapter NST reps can record events, place threats and write notes for their own chapter. Codes are kept in the story sheet's Reps tab.</div>`;
+      setTimeout(() => $("code-in")?.focus(), 0);
+    } else {
+      pop.innerHTML = `<div class="who">Signed in as <b>${esc(m.name || "a rep")}</b>, ${esc(ROLES[m.role].name)} for ${esc(chapterNames(m))}.</div><div class="btnrow"><button type="button" class="btn" id="sign-out">Sign out</button><button type="button" class="btn big" id="pop-close">Close</button></div>`;
+    }
+  }
+}
+function afterAuth(raise) {
+  const max = VIS_RANK[maxLayer()];
+  if (raise) S.layer = maxLayer();
+  if (VIS_RANK[S.layer] > max) S.layer = maxLayer();
+  if (!canDraft()) { S.draft = null; S.siteEdit = false; S.pendingSite = null; S.layoutMode = false; }
+  S.idx = 9999; refreshAll(false);
+}
+
+/* ---------- Event wiring ---------- */
+document.addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t) { if (!e.target.closest("#pop")) $("pop").hidden = true; return; }
+  const d = t.dataset;
+  if (t.id === "share-btn") { openPop("share"); return; }
+  if (t.id === "who-btn") { openPop("who"); return; }
+  if (t.id === "pop-close") { $("pop").hidden = true; return; }
+  if (t.id === "emb-copy") { const ta = $("emb-code"); try { await navigator.clipboard.writeText(ta.value); toast("Embed code copied"); } catch (x) { ta.select(); toast("Select the code and copy it"); } return; }
+  if (t.id === "code-go") { await doSignIn(); return; }
+  if (t.id === "sign-out") { $("pop").hidden = true; await Store.signOut(); afterAuth(true); toast("Signed out"); return; }
+  if (t.id === "demo-on" || t.id === "demo-off") { $("pop").hidden = true; await Store.signIn(t.id === "demo-on"); afterAuth(true); return; }
+  if (t.id === "demo-reset") { $("pop").hidden = true; Store.reset(); afterAuth(false); toast("Demo data cleared"); return; }
+  if (!t.closest("#pop") && !t.closest(".head-tools")) $("pop").hidden = true;
+  if (t.closest("#layerseg") && d.layer) { S.layer = d.layer; try { localStorage.setItem("alwm.layer", S.layer); } catch (x) {} S.idx = 9999; refreshAll(false); return; }
+  if (t.closest(".tabs") && d.tab) { S.tab = d.tab; renderSide(); return; }
+  if (d.eye) { S.hidden.has(d.eye) ? S.hidden.delete(d.eye) : S.hidden.add(d.eye); try { localStorage.setItem("alwm.hidden", JSON.stringify([...S.hidden])); } catch (x) {} redraw({ fresh: false }); renderSide(); return; }
+  if (d.focus) { S.focus = S.focus === d.focus ? null : d.focus; redraw({ fresh: false }); renderSide(); return; }
+  if (d.goreg) { selectRegion(d.goreg); return; }
+  if (d.openreg) { openRegion(d.openreg); return; }
+  if (d.closereg) { closeRegion(); return; }
+  if (d.unsite) { S.site = null; renderRegionView({ fresh: false }); renderSide(); return; }
+  if (d.jump) { stop(); if (S.draft && !S.draft.changes.length) S.draft = null; goTo(+d.jump, +d.jump === S.idx + 1); return; }
+  if (d.step) { stepTier(d.step, +d.d, d.site || null); return; }
+  if (d.addthr !== undefined) { addThreat(d.addthr); return; }
+  if (d.addclash) { const dr = ensureDraft(); dr.changes.push(freshChange("clash", S.selected)); claimChapter(dr, S.selected); S.tab = "log"; refreshAll(false); return; }
+  if (d.thrchg) { editThreat(d.thrchg, false); return; }
+  if (d.thrgone) { editThreat(d.thrgone, true); return; }
+  if (t.id === "site-edit") { S.siteEdit = !S.siteEdit; S.pendingSite = null; renderRegionView({ fresh: false }); renderSide(); return; }
+  if (t.id === "ps-cancel") { S.pendingSite = null; renderRegionView({ fresh: false }); renderSide(); return; }
+  if (t.id === "ps-save") {
+    const name = $("ps-name").value.trim(); if (!name) { toast("Give the site a name"); return; }
+    const ps = S.pendingSite, id = ps.region + "-" + slug(name) + "-" + Date.now().toString(36).slice(-4);
+    await saveSite({ id, region: ps.region, name, x: ps.x, y: ps.y, note: $("ps-note").value.trim() });
+    S.pendingSite = null; S.site = id; renderRegionView({ fresh: false }); renderSide(); toast("Site added"); return;
+  }
+  if (t.id === "se-save") { await saveSite({ id: S.site, region: S.selected, name: $("se-name").value.trim() || siteName(S.selected, S.site), note: $("se-note").value.trim() }); renderRegionView({ fresh: false }); renderSide(); toast("Site saved"); return; }
+  if (t.id === "se-del") {
+    const s = sitesFor(S.selected, true).find(x => x.id === S.site); if (!s) return;
+    if (s.custom) { delete S.sites[s.id]; try { await Store.deleteSite(s.id); } catch (x) { toast("Couldn't delete the site"); } }
+    else await saveSite({ id: s.id, region: S.selected, hidden: true });
+    S.site = null; renderRegionView({ fresh: false }); renderSide(); toast(s.custom ? "Site deleted" : "Site hidden"); return;
+  }
+  if (t.id === "n-save") {
+    const note = { public: $("n-pub").value.trim(), story: $("n-story").value.trim(), updatedBy: Store.me.name || "", updatedAt: new Date().toISOString() };
+    try { await Store.saveNote(S.selected, note); S.notes[S.selected] = note; toast("Notes saved"); renderSide(); } catch (x) { toast("Couldn't save the notes: " + (x?.message || "")); }
+    return;
+  }
+  if (t.id === "d-new") { S.draft = newDraft(); S.idx = EV.length - 1; refreshAll(false); return; }
+  if (t.id === "d-cancel") { S.draft = null; refreshAll(false); return; }
+  if (t.id === "d-save") { await saveDraft(); return; }
+  if (d.addc) { const dr = ensureDraft(); dr.changes.push(freshChange(d.addc)); claimChapter(dr, S.selected); refreshAll(false); return; }
+  if (d.delc !== undefined) { S.draft.changes.splice(+d.delc, 1); refreshAll(false); return; }
+  if (d.edit) { const ev = S.events.find(x => x.id === d.edit); if (ev) { S.draft = clean({ id: ev.id, title: ev.title || "", when: ev.when || "", chapter: ev.chapter || "national", visibility: ev.visibility || "story", summary: ev.summary || "", changes: ev.changes || [] }); S.tab = "log"; refreshAll(false); } return; }
+  if (d.del) { S.confirmDel = d.del; renderLog(); return; }
+  if (d.delno) { S.confirmDel = null; renderLog(); return; }
+  if (d.delok) { S.confirmDel = null; try { await Store.deleteEvent(d.delok); toast("Event deleted"); } catch (x) { toast("Couldn't delete: " + (x?.message || "")); } return; }
+  if (d.up) { await swapOrder(+d.up, +d.up - 1); return; }
+  if (d.down) { await swapOrder(+d.down, +d.down + 1); return; }
+  if (t.id === "clear-ex") { for (const ev of S.events.filter(x => x.example)) { try { await Store.deleteEvent(ev.id); } catch (x) {} } toast("Example events removed"); return; }
+  if (t.id === "seed-open") { try { await Store.saveEvent({ ...OPENING, example: false }); toast("Opening positions saved"); } catch (x) { toast("Couldn't save"); } return; }
+  if (t.id === "lay-toggle") { S.layoutMode = !S.layoutMode; renderMap({ fresh: false }); renderSide(); return; }
+  if (t.id === "lay-reset") { S.positions = {}; renderMap({ fresh: false }); try { await Store.savePositions({}); toast("Positions reset"); } catch (x) {} return; }
+  if (t.id === "exp") { exportJSON(); return; }
+});
+async function doSignIn() {
+  const code = $("code-in")?.value.trim(); if (!code) return;
+  try { await Store.signIn(code); $("pop").hidden = true; afterAuth(true); toast(`Signed in as ${Store.me.name || "a rep"}`); }
+  catch (x) { toast(x?.message || "That code wasn't recognised"); }
+}
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.id === "code-in") { doSignIn(); return; }
+  if (e.key === "Escape") { if (!$("pop").hidden) { $("pop").hidden = true; return; } if (RV.id) { closeRegion(); return; } }
+  if (e.target.closest("input, textarea, select")) return;
+  if (e.key === "ArrowRight") { stop(); goTo(S.idx + 1, true); }
+  if (e.key === "ArrowLeft") { stop(); goTo(S.idx - 1, false); }
+});
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.id === "scrub") { stop(); goTo(+t.value, false); return; }
+  if (!S.draft) return;
+  if (t.id === "d-title") { S.draft.title = t.value; const b = $("d-save"); if (b) b.disabled = !t.value.trim() || (!isNST() && draftWarnings(S.draft).some(w => w.nst)); return; }
+  if (t.id === "d-when") { S.draft.when = t.value; return; }
+  if (t.id === "d-sum") { S.draft.summary = t.value; return; }
+  if (t.dataset.ci !== undefined && t.tagName === "INPUT" && t.type !== "checkbox") { S.draft.changes[+t.dataset.ci][t.dataset.f] = t.value; return; }
+});
+document.addEventListener("change", async e => {
+  const t = e.target;
+  if ((t.id && t.id.startsWith("ly-")) || t.id === "rv-names") { try { const o = {}; document.querySelectorAll(".layers input, #rv-names").forEach(i => o[i.id] = i.checked); localStorage.setItem("alwm.layers", JSON.stringify(o)); } catch (x) {} renderMap({ fresh: false }); return; }
+  if (t.id === "st-sel") { setStatus(t.value); return; }
+  if (!S.draft) return;
+  if (t.id === "d-ch") { S.draft.chapter = t.value; refreshAll(false); return; }
+  if (t.id === "d-vis") { S.draft.visibility = t.value; return; }
+  if (t.dataset.ci !== undefined) {
+    const i = +t.dataset.ci, c = S.draft.changes[i], f = t.dataset.f;
+    if (f === "type") S.draft.changes[i] = freshChange(t.value, c.region || c.to);
+    else if (f === "keep" || f === "remove" || f === "all") c[f] = t.checked;
+    else if (f === "tier") c.tier = +t.value;
+    else if (f === "region") { c.region = t.value; c.site = ""; }
+    else if (f === "from") { c.from = t.value; c.fromSite = ""; }
+    else if (f === "to") { c.to = t.value; c.toSite = ""; }
+    else if (f === "kind") { c.kind = t.value; c.group = t.value === "lesser" ? (Object.keys(LESSER).find(k => LESSER[k].home === c.region) || "forsworn") : "bandits"; if (c.kind === "lesser" && c.tier > 3 && !isNST()) c.tier = 3; }
+    else if (f === "tid") {
+      if (t.value === "__new") Object.assign(c, { tid: newTid(), name: "", remove: false });
+      else { const st = draftBaseState(), rid = findThreat(st, t.value), old = st[rid].threats[t.value]; Object.assign(c, { tid: t.value, kind: old.kind, group: old.group, name: old.name, tier: old.tier, region: rid, site: old.site || "", note: old.note || "" }); }
+    }
+    else c[f] = t.value;
+    refreshAll(false);
+  }
+});
+$("tl-first").onclick = () => { stop(); goTo(0, false); };
+$("tl-prev").onclick = () => { stop(); goTo(S.idx - 1, false); };
+$("tl-next").onclick = () => { stop(); goTo(S.idx + 1, true); };
+$("tl-play").onclick = () => { S.playing ? stop() : play(); };
+let playTimer = null;
+function play() {
+  if (EV.length < 2) return;
+  if (S.draft && S.draft.changes.length) { toast("Finish or discard the draft to play the story"); return; }
+  S.draft = null;
+  S.playing = true; if (S.idx >= EV.length - 1) goTo(0, false); else renderChrome();
+  const tick = () => { if (!S.playing) return; if (S.idx >= EV.length - 1) { stop(); return; } goTo(S.idx + 1, true); playTimer = setTimeout(tick, 2600); };
+  playTimer = setTimeout(tick, 900);
+}
+function stop() { S.playing = false; clearTimeout(playTimer); $("tl-play").textContent = "▶"; $("tl-play").setAttribute("aria-label", "Play the story"); }
+
+async function exportJSON() {
+  const data = JSON.stringify({ exportedAt: new Date().toISOString(), events: S.usingFallback ? [OPENING] : S.events, sites: Object.values(S.sites), notes: S.notes, positions: S.positions }, null, 2);
+  if (S.downloads) { try { await S.downloads.save({ filename: "abandoned-lands-story.json", data }); return; } catch (e) { if (e?.code === "declined") return; } }
+  try {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], { type: "application/json" })); a.download = "abandoned-lands-story.json"; document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { try { await navigator.clipboard.writeText(data); toast("Story copied to the clipboard as JSON"); } catch (x) { toast("Export isn't available in this view"); } }
+}
+
+function refreshAll(fresh) {
+  rebuild();
+  if (S.jumpToId) { const i = EV.findIndex(e => e.id === S.jumpToId); if (i >= 0) S.idx = i; S.jumpToId = null; }
+  renderMap({ fresh: !!fresh }); renderChrome();
+}
+function applyData(d, first) {
+  const atEnd = S.idx >= EV.length - 1;
+  if (d.events) S.events = d.events.map(e => ({ ...e, changes: typeof e.changes === "string" ? JSON.parse(e.changes || "[]") : (e.changes || []) }));
+  if (d.sites) S.sites = Array.isArray(d.sites) ? Object.fromEntries(d.sites.map(s => [s.id, s])) : d.sites;
+  if (d.notes) S.notes = d.notes;
+  if (d.positions) S.positions = d.positions;
+  S.loaded = true;
+  S.usingFallback = S.events.length === 0;
+  if (first || atEnd) S.idx = 9999;
+  refreshAll(!!first);
+}
+
+/* ---------- Storage: claude.ai artifact, Google Sheet, or this browser ---------- */
+async function startClaude() {
+  const [db, user, downloads] = await Promise.all(["db", "user", "downloads"].map(n => window.claude.use(n).catch(() => null)));
+  if (!db) return false;
+  Store.mode = "claude"; S.downloads = downloads;
+  let can = false; if (user) { try { can = (await user.can("data.write")) !== false; } catch (e) {} }
+  Store.me = can ? { role: "nst", name: "Map editor", chapters: [] } : { role: "viewer", name: "", chapters: [] };
+  Store.saveEvent = async ev => { const { id, ...rest } = ev; if (id && S.events.some(e => e.id === id)) { await db.collection("events").doc(id).update(rest); return id; } const nid = id || "ev" + Date.now().toString(36); await db.collection("events").doc(nid).set(rest); return nid; };
+  Store.deleteEvent = id => db.collection("events").doc(id).delete();
+  Store.reorder = async list => { for (const o of list) await db.collection("events").doc(o.id).update({ order: o.order }); };
+  Store.saveSite = s => db.collection("sites").doc(s.id).set(s);
+  Store.deleteSite = id => db.collection("sites").doc(id).delete();
+  Store.saveNote = (region, n) => db.collection("notes").doc(region).set(n);
+  Store.savePositions = p => db.doc("settings/layout").set({ positions: p });
+  let first = true;
+  db.collection("events").onSnapshot(snap => { applyData({ events: snap.docs.map(x => ({ id: x.id, ...x.data() })) }, first); first = false; }, err => toast("The story log couldn't load: " + (err?.message || "")));
+  db.collection("sites").onSnapshot(snap => { S.sites = Object.fromEntries(snap.docs.map(x => [x.id, { id: x.id, ...x.data() }])); renderRegionView({ fresh: false }); if (S.tab === "region") renderSide(); }, () => {});
+  db.collection("notes").onSnapshot(snap => { S.notes = Object.fromEntries(snap.docs.map(x => [x.id, x.data()])); if (S.tab === "region") renderSide(); }, () => {});
+  db.doc("settings/layout").onSnapshot(snap => { if (drag && drag.mode === "city") return; S.positions = (snap.exists && snap.data()?.positions) || {}; renderMap({ fresh: false }); }, () => {});
+  return true;
+}
+function startSheets() {
+  Store.mode = "sheets";
+  let code = ""; try { code = localStorage.getItem("alwm.code") || ""; } catch (e) {}
+  let first = true;
+  const load = async () => {
+    const u = new URL(CONFIG.apiUrl); u.searchParams.set("action", "load"); if (code) u.searchParams.set("code", code);
+    const r = await fetch(u.toString(), { cache: "no-store" }); const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    if (j.badCode && code) { code = ""; try { localStorage.removeItem("alwm.code"); } catch (e) {} toast("Your rep code is no longer valid. Sign in again."); }
+    const before = Store.me.role;
+    Store.me = j.me || { role: "viewer", name: "", chapters: [] };
+    applyData(j, first); first = false;
+    if (before !== Store.me.role) afterAuth(false);
+  };
+  const post = async (action, payload) => {
+    const r = await fetch(CONFIG.apiUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, code, ...payload }) });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || "The story sheet refused that change");
+    await load(); return j;
+  };
+  Store.signIn = async c => { const prev = code; code = c; try { await load(); } catch (e) { code = prev; throw e; } if (Store.me.role === "viewer") { code = prev; throw new Error("That rep code wasn't recognised"); } try { localStorage.setItem("alwm.code", code); } catch (e) {} };
+  Store.signOut = async () => { code = ""; try { localStorage.removeItem("alwm.code"); } catch (e) {} await load(); };
+  Store.saveEvent = async ev => (await post("saveEvent", { event: ev })).id;
+  Store.deleteEvent = id => post("deleteEvent", { id });
+  Store.reorder = orders => post("reorder", { orders });
+  Store.saveSite = site => post("saveSite", { site });
+  Store.deleteSite = id => post("deleteSite", { id });
+  Store.saveNote = (region, note) => post("saveNote", { region, note });
+  Store.savePositions = positions => post("savePositions", { positions });
+  load().catch(e => { S.loaded = true; toast("Couldn't reach the story sheet: " + e.message); refreshAll(false); });
+  setInterval(() => { if (!document.hidden && !S.draft && !rdrag && !drag) load().catch(() => {}); }, Math.max(15, CONFIG.pollSeconds) * 1000);
+}
+function startLocal() {
+  Store.mode = "local";
+  const KEY = "alwm.local";
+  const fresh = () => ({ events: [{ ...OPENING, example: false }], sites: [], notes: {}, positions: {} });
+  let data = null; try { data = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
+  if (!data) data = fresh();
+  let demo = false; try { demo = localStorage.getItem("alwm.demo") === "1"; } catch (e) {}
+  const setMe = () => { Store.me = demo ? { role: "nst", name: "Demo editor", chapters: [] } : { role: "viewer", name: "", chapters: [] }; };
+  setMe();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} applyData(clean(data)); };
+  Store.signIn = async on => { demo = !!on; try { localStorage.setItem("alwm.demo", demo ? "1" : "0"); } catch (e) {} setMe(); };
+  Store.signOut = async () => Store.signIn(false);
+  Store.reset = () => { data = fresh(); save(); };
+  Store.saveEvent = async ev => { const ex = ev.id && data.events.find(e => e.id === ev.id); if (ex) Object.assign(ex, ev); else { ev = { ...ev, id: ev.id || "ev" + Date.now().toString(36) }; data.events.push(ev); } save(); return ev.id; };
+  Store.deleteEvent = async id => { data.events = data.events.filter(e => e.id !== id); save(); };
+  Store.reorder = async list => { list.forEach(o => { const e = data.events.find(x => x.id === o.id); if (e) e.order = o.order; }); save(); };
+  Store.saveSite = async s => { data.sites = data.sites.filter(x => x.id !== s.id).concat([s]); save(); };
+  Store.deleteSite = async id => { data.sites = data.sites.filter(x => x.id !== id); save(); };
+  Store.saveNote = async (region, n) => { data.notes[region] = n; save(); };
+  Store.savePositions = async p => { data.positions = p; save(); };
+  applyData(clean(data), true);
+}
+
+/* ---------- Boot ---------- */
+if (EMBED) document.body.classList.add("embed");
+buildMapSkeleton(); renderLegend();
+S.idx = 9999; refreshAll(true);
+$("layers").open = false;
+(async () => {
+  let ok = false;
+  if (window.claude && window.claude.use) { try { ok = await startClaude(); } catch (e) { ok = false; } }
+  if (!ok && CONFIG.apiUrl) { startSheets(); ok = true; }
+  if (!ok) startLocal();
+  afterAuth(false);
+  const rg = PARAMS.get("region");
+  if (rg && R[rg]) openRegion(rg, false);
+})();
+})();
+</script>
+</body>
+</html>
