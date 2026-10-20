@@ -82,21 +82,21 @@ const DANGER = [['Calm', 'var(--ok)'], ['Uneasy', '#8a9a3a'], ['Dangerous', 'var
   }, html);
   const shot = async (p, name) => { await sleep(300); await p.screenshot({ path: OUT + name }); await p.close(); };
 
-  // 1. Town crier
+  // 1. Dispatches
   let p = await open();
-  await pane(p, 'Crier', `<div class="crier"><div class="mast">The Abandoned Lands Crier</div><div class="sub">AUTUMN, THE SECOND SEASON · ALL CHAPTERS</div>
+  await pane(p, 'Dispatches', `<div class="crier"><div class="mast">Dispatches</div><div class="sub">CARRIED BY RIDER FROM ACROSS THE ABANDONED LANDS</div>
     <div class="from">From Eisendreieck</div><h4>Drums at Greyhook Pass!</h4><p>A warclan holds the pass. Caravans for the west now take the long road through the hills. Smiths in the city work through the night.</p>
     <div class="from">From Reefwatch Keep</div><h4>The well at Southbrook runs sweet again</h4><p>Farmers give thanks to the band who broke the coral totem. The salt is gone, but the fishermen still won't say what they saw.</p>
-    <div class="from">Heard in every tavern</div><h4>Lanterns on the barrow road</h4><p>Pilgrims swear the grave-markers near Braylong have turned to face north. Who turned them?</p></div>
-    <div class="mk-meta">Built automatically from Players-visible entries. Each story links to its spot on the map.</div>`);
-  await shot(p, '1-crier.png');
+    <div class="from">From Braylong</div><h4>Lanterns on the barrow road</h4><p>Pilgrims swear the grave-markers near Braylong have turned to face north. Who turned them?</p></div>
+    <div class="mk-meta">Built from Players entries only. News arrives after the event, by rider, so it is never live. Each dispatch links to its spot on the map.</div>`);
+  await shot(p, '1-dispatches.png');
 
   // 2. Event calendar linked to the map
   p = await open();
   await badges(p, [['bracken', '📅 8 Nov'], ['eisendreieck', '📅 15 Nov'], ['sudenburg', '📅 22 Nov'], ['reefwatch', '📅 29 Nov'], ['braylong', '📅 6 Dec']]);
   await pane(p, 'Calendar', `<h3>Upcoming events</h3><div class="mk-meta">Pulled from the Swordcraft events calendar. Click one to fly to its region.</div>
     ${[['8 Nov', 'Bracken', 'Thorns and Embers', 'Wildwrought · tier 2 planned'], ['15 Nov', 'Eisendreieck', 'Iron Will', 'Gor Horde · tier 3 incursion'], ['22 Nov', 'Sudenburg', 'The Broker\'s Feast', 'No External Evil planned'], ['29 Nov', 'Reefwatch Keep', 'Low Tide', 'Drowned Court · tier 1']].map(([d, r, n, t]) => `<div class="mk-card"><b>${d} · ${n}</b><div class="mk-meta">${r}</div><p class="mk-meta">Story team only: ${t}</p></div>`).join('')}
-    <div class="mk-card" style="border-color:var(--warn)"><b>⚠ Heads up for the NST</b><p class="mk-meta">Gor Horde appears in two chapters within 3 weeks (Eisendreieck 15 Nov, Sudenburg rumour 22 Nov).</p></div>`);
+    <div class="mk-card" style="border-color:var(--warn)"><b>⚠ Heads up for the NST</b><p class="mk-meta">Gor Horde appears in two chapters within 3 weeks (Eisendreieck 15 Nov, Sudenburg 22 Nov).</p></div>`);
   await shot(p, '2-calendar.png');
 
   // 3. State of the realm summary
@@ -111,11 +111,11 @@ const DANGER = [['Calm', 'var(--ok)'], ['Uneasy', '#8a9a3a'], ['Dangerous', 'var
 
   // 4. Handoff requests
   p = await open(); await signIn(p, 'lead-1');
-  await pane(p, 'Requests', `<h3>Chapter requests</h3><div class="mk-lock">🔒 Never shown to players. Story teams, reps and the NST only.</div>
-    <div class="mk-card"><span class="mk-chip">Waiting on Braylong</span><b style="display:block;margin-top:6px">Bracken asks Braylong</b><p>Can the Pale Host scouts from the barrow road follow our players into Bracken's woods at Thorns and Embers (8 Nov)? Tier 1 only.</p>
-      <span class="mk-btn go">Agree</span><span class="mk-btn">Agree with changes</span><span class="mk-btn no">Decline</span></div>
-    <div class="mk-card"><span class="mk-chip" style="color:var(--ok)">Agreed</span><b style="display:block;margin-top:6px">Eisendreieck asks the NST</b><p>Raise the Gor Horde at Greyhook Pass to tier 3.</p><p class="mk-meta">Agreed by Brett · 14 Oct · "Keep the warchief off-stage until spring."</p></div>
-    <div class="mk-card"><span class="mk-chip" style="color:var(--bad)">Declined</span><b style="display:block;margin-top:6px">Sudenburg asks Reefwatch Keep</b><p>Borrow the Drowned Court for a dockside scene.</p><p class="mk-meta">Declined · "We reveal them at Low Tide first."</p></div>`);
+  await pane(p, 'Requests', `<h3>Chapter requests</h3><div class="mk-lock">🔒 Never shown to players. Only the NST lead can approve.</div>
+    <div class="mk-card"><span class="mk-chip">Waiting on the NST lead</span><b style="display:block;margin-top:6px">Bracken asks</b><p>Can the Pale Host scouts from Braylong's barrow road follow our players into Bracken's woods at Thorns and Embers (8 Nov)? Tier 1 only.</p><p class="mk-meta">Affects Braylong · their story team can see this and comment.</p>
+      <span class="mk-btn go">Approve</span><span class="mk-btn">Approve with changes</span><span class="mk-btn no">Decline</span></div>
+    <div class="mk-card"><span class="mk-chip" style="color:var(--ok)">Approved</span><b style="display:block;margin-top:6px">Eisendreieck asks</b><p>Raise the Gor Horde at Greyhook Pass to tier 3.</p><p class="mk-meta">Approved by Brett · 14 Oct · "Keep the warchief off-stage until spring."</p></div>
+    <div class="mk-card"><span class="mk-chip" style="color:var(--bad)">Declined</span><b style="display:block;margin-top:6px">Sudenburg asks</b><p>Borrow the Drowned Court for a dockside scene.</p><p class="mk-meta">Declined by Brett · "Reefwatch reveals them at Low Tide first."</p></div>`);
   await shot(p, '4-requests.png');
 
   // 5. Danger level
@@ -129,24 +129,14 @@ const DANGER = [['Calm', 'var(--ok)'], ['Uneasy', '#8a9a3a'], ['Dangerous', 'var
     <div class="mk-meta">The level is worked out from the threats and condition on the map, so nobody has to keep a score. The NST can override it.</div>`);
   await shot(p, '5-danger.png');
 
-  // 6. Rumours
-  p = await open(); await signIn(p, 'story-br');
-  await badges(p, [['braylong', '💬 2 rumours'], ['bracken', '💬 1 rumour'], ['eisendreieck', '💬 1 rumour']]);
-  await pane(p, 'Rumours', `<h3>Rumour mill</h3><div class="mk-meta">Players see the rumour. Only story teams see whether it's true.</div>
-    ${[['Lanterns move on the barrow road at night, and the grave-markers have turned north.', 'True', 'var(--ok)', 'Braylong', 'Pale Host · links to the Mystery pinpoint'],
-       ['A Sudenburg senator is paying the raiders on Bracken\'s south road.', 'Half-true', 'var(--warn)', 'Bracken · Sudenburg', 'It\'s his steward, not him'],
-       ['The Drowned Court can\'t cross running water.', 'False', 'var(--bad)', 'Reefwatch · Braylong', 'Planted by the Court itself'],
-       ['There\'s dwarven iron under Greyhook Pass, and the Horde knows it.', 'Unknown yet', 'var(--muted)', 'Eisendreieck', 'NST to decide by spring']].map(([t, v, c, w, n]) => `<div class="mk-card"><p style="margin:0">“${t}”</p><div style="margin-top:6px"><span class="mk-chip" style="color:${c};font-weight:600">${v}</span><span class="mk-meta">${w}</span></div><p class="mk-meta">Story note: ${n}</p></div>`).join('')}`);
-  await shot(p, '6-rumours.png');
-
-  // 7. Season recap
+  // 6. Yearly recap
   p = await open(); await signIn(p, 'lead-1');
   const ch = [['Bracken', 3], ['Eisendreieck', 2], ['Sudenburg', 2], ['Braylong', 2], ['Reefwatch Keep', 1], ['Ritterstein', 1], ['New Kriegstor', 0], ['Stromstadt', 0], ['Handelsdorf', 1], ['Weitnördlich', 0], ['Helsreik', 1]];
-  await overMap(p, `<h2>Season recap · Autumn</h2><div class="mk-meta" style="margin-bottom:14px">NST only. Built from this season's entries.</div>
+  await overMap(p, `<h2>Yearly recap · 2026</h2><div class="mk-meta" style="margin-bottom:14px">NST only. Built from this year's entries.</div>
     <div class="grid" style="grid-template-columns:repeat(4,1fr)"><div class="stat"><b>13</b>events posted</div><div class="stat"><b>3</b>threats rose</div><div class="stat"><b>2</b>threats beaten</div><div class="stat"><b style="color:var(--bad)">1</b>region besieged</div></div>
     <div class="grid" style="grid-template-columns:1.2fr 1fr;margin-top:14px"><div class="stat"><h5>Entries by chapter</h5><table class="mk">${ch.map(([n, c]) => `<tr><td>${n}</td><td style="width:60%">${c ? `<span class="bar" style="width:${c * 50}px;background:var(--accent)"></span> ${c}` : '<span style="color:var(--bad)">None yet</span>'}</td></tr>`).join('')}</table></div>
-    <div class="grid" style="align-content:start"><div class="stat"><h5>Needs a look</h5><p class="mk-meta" style="margin:0">New Kriegstor, Stromstadt and Weitnördlich have posted nothing this season.<br>Raiders (Lesser Evil) in Bracken were ignored twice and can grow to tier 2.<br>3 rumours are still marked Unknown.</p></div>
-    <div class="stat"><h5>Biggest moments</h5><p class="mk-meta" style="margin:0">Bracken besieged (Oct)<br>Gor Horde reach Greyhook Pass (Sep)<br>Southbrook well saved (Sep)</p></div></div></div>`);
-  await shot(p, '7-recap.png');
+    <div class="grid" style="align-content:start"><div class="stat"><h5>Needs a look</h5><p class="mk-meta" style="margin:0">New Kriegstor, Stromstadt and Weitnördlich have posted nothing this year.<br>Raiders (Lesser Evil) in Bracken were ignored twice and can grow to tier 2.<br>Braylong's Pale Host has sat at tier 1 all year.</p></div>
+    <div class="stat"><h5>Biggest moments of the year</h5><p class="mk-meta" style="margin:0">Bracken besieged (Oct)<br>Gor Horde reach Greyhook Pass (Sep)<br>Southbrook well saved (Sep)</p></div></div></div>`);
+  await shot(p, '6-yearly-recap.png');
   await b.close();
 })();
