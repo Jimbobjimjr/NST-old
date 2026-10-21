@@ -286,7 +286,7 @@ function renderRegionView(opts = {}) {
   const loose = EVIL_ORDER.filter(k => here.base[k] && !S.hidden.has(k));
   const looseT = threatShown() ? Object.values(here.threats).filter(t => !t.site || !known.has(t.site)) : [];
   let tray = `<div class="lbl">Across ${esc(r.name)}</div>`;
-  if (!loose.length && !looseT.length && !marks.some(m => !(m.site && siteAt[m.site]) && m.x == null)) tray += `<div class="muted">${Object.keys(here.p).length || Object.keys(here.threats).length ? "Every force here is placed at a site." : "No threats in this region at this step."}</div>`;
+  if (!loose.length && !looseT.length && !marks.some(m => !(m.site && siteAt[m.site]) && m.x == null)) tray += `<div class="muted">${Object.keys(here.p).length || Object.keys(here.threats).length ? "Every force here is placed at a site." : "No threats in this region at this turn."}</div>`;
   tray += loose.map(k => `<div class="row">${swatch(k, 18, here.base[k])}<span>${EVILS[k].short} · ${esc(TIERS[here.base[k]].name)}, region-wide</span></div>`).join("");
   tray += looseT.map(t => `<div class="row">${thrSwatch(t, 18, true)}<span>${esc(threatName(t))}${t.site ? " · at a removed site" : " · region-wide"}</span></div>`).join("");
   tray += marks.filter(m => !(m.site && siteAt[m.site]) && m.x == null).map(m => `<div class="row">${pinSwatch(m, 18)}<span>${esc(markName(m))} · region-wide</span></div>`).join("");
@@ -367,33 +367,36 @@ function renderChrome() {
   const max = VIS_RANK[maxLayer()];
   document.querySelectorAll("#layerseg button").forEach(b => { b.hidden = VIS_RANK[b.dataset.layer] > max; b.setAttribute("aria-pressed", String(b.dataset.layer === S.layer)); });
   $("layerseg").hidden = max === 0; $("layer-lbl").hidden = max === 0;
-  const n = EV.length, sc = $("scrub");
-  sc.max = Math.max(0, n - 1); sc.value = S.idx; sc.disabled = n < 2;
+  const n = TURNS.length, sc = $("scrub"), ti = turnIndexOf(S.idx);
+  sc.max = Math.max(0, n - 1); sc.value = ti; sc.disabled = n < 2;
   const ev = currentEvent();
-  $("sub-step").textContent = n ? (S.draft && S.draft.changes.length ? "Draft preview." : `Step ${S.idx + 1} of ${n}.`) : "";
   const ticks = $("ticks"); ticks.innerHTML = "";
-  if (n > 1) EV.forEach((e, i) => {
-    const b = document.createElement("button"); b.type = "button"; b.textContent = i + 1; b.title = e.title;
-    b.style.left = (i / (n - 1) * 100) + "%"; if (i === S.idx) b.className = "on";
-    b.onclick = () => { stop(); goTo(i, i === S.idx + 1); }; ticks.appendChild(b);
+  if (n > 1) TURNS.forEach((t, k) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = turnNo(t.key); b.title = turnName(t.key) + (t.events.length > 1 ? ` (${t.events.length} entries)` : ": " + (t.events[0].title || ""));
+    b.style.left = (k / (n - 1) * 100) + "%"; if (k === ti) b.className = "on";
+    b.onclick = () => { stop(); goTo(t.last, k === ti + 1); }; ticks.appendChild(b);
   });
   const now = $("tl-now");
   if (!ev) { now.innerHTML = `<h2>No story events yet</h2><p class="muted">Open the Story log to record the first movement.</p>`; }
+  else if (ev.multi) {
+    now.innerHTML = `<h2>${esc(ev.title)}</h2><span class="meta">${ev.multi.length} entries this turn</span>
+      <div class="turnlist">${ev.multi.map(e => `<div><b>${esc(e.title || "Untitled event")}</b> <span class="muted">· ${esc(R[e.chapter]?.name || "National")}${e.when ? " · " + esc(e.when) : ""}</span>${e.summary ? `<div class="small">${esc(e.summary)}</div>` : ""}</div>`).join("")}</div>${describeChanges(ev)}`;
+  }
   else {
     const ch = ev.chapter && R[ev.chapter] ? R[ev.chapter].name : "National";
     now.innerHTML = `<h2>${esc(ev.title || "Untitled event")}</h2><span class="meta">${esc(ev.when || "")}${ev.when ? " · " : ""}${esc(ch)} · <span class="pill vis-${ev.visibility || "public"}">${VIS[ev.visibility || "public"]}</span>${ev.example ? ` <span class="pill ex">Example</span>` : ""}</span>${ev.summary ? `<p>${esc(ev.summary)}</p>` : ""}${describeChanges(ev)}`;
   }
   $("tl-play").textContent = S.playing ? "❚❚" : "▶";
   $("tl-play").setAttribute("aria-label", S.playing ? "Pause" : "Play the story");
-  ["tl-first", "tl-prev"].forEach(id => $(id).disabled = S.idx <= 0);
-  $("tl-next").disabled = S.idx >= n - 1;
+  ["tl-first", "tl-prev"].forEach(id => $(id).disabled = ti <= 0);
+  $("tl-next").disabled = ti >= n - 1;
   $("tl-play").disabled = n < 2;
   renderWho();
   renderSide();
 }
 function describeChanges(ev) {
   const at = (region, site) => (R[region]?.name || "?") + (site ? " (" + siteName(region, site) + ")" : "");
-  const before = (() => { const i = EV.indexOf(ev); return i > 0 ? STATES[i - 1] : ev === S.draft ? draftBaseState() : blankState(); })();
+  const before = (() => { if (ev.multi) return prevStateOf(EV.indexOf(ev.multi[0])); const i = EV.indexOf(ev); return i > 0 ? STATES[i - 1] : ev === S.draft ? draftBaseState() : blankState(); })();
   const parts = (ev.changes || []).map(c => {
     if (c.type === "set") return `${EVILS[c.evil]?.short || "?"} ${+c.tier ? "at tier " + c.tier : c.all ? "withdraws entirely from" : "withdraws"} in ${at(c.region, c.site)}`.replace("withdraws entirely from in", "withdraws entirely from");
     if (c.type === "move") return `${EVILS[c.evil]?.short || "?"} advances ${at(c.from, c.fromSite)} → ${at(c.to, c.toSite)}${c.keep ? " (holding its ground behind)" : ""}`;
@@ -429,7 +432,14 @@ function renderLegend() {
 
 /* ---------- Side panel ---------- */
 const TABS = ["threats", "region", "log", "overview", "dispatches", "calendar", "requests", "recap"];
+/* "Turn 4 of 6." in the header, plus the selected chapter's own step. */
+function renderSubStep() {
+  const n = TURNS.length, ti = turnIndexOf(S.idx);
+  const rs = S.selected && R[S.selected]?.kind === "chapter" ? regionSteps(S.selected) : null, rk = rs ? rs.filter(i => i <= S.idx).length : 0;
+  $("sub-step").textContent = n ? (S.draft && S.draft.changes.length ? "Draft preview." : `Turn ${turnNo(TURNS[ti].key)} of ${turnNo(TURNS[n - 1].key)}.${rs && rs.length ? ` ${R[S.selected].name}: beat ${rk} of ${rs.length}.` : ""}`) : "";
+}
 function renderSide() {
+  renderSubStep();
   tabBadges();
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)));
   TABS.forEach(t => $("pane-" + t).hidden = t !== S.tab);
@@ -444,7 +454,22 @@ function eventsTouching(id) {
   }
   return out;
 }
-/* "Right now": one line per chapter, built from what is on the map at this step. */
+/* Every entry that touches a region, in story order: the region's own story. */
+function regionSteps(id) {
+  const out = [];
+  EV.forEach((e, i) => { if ((e.changes || []).some(c => c.region === id || c.from === id || c.to === id) || e.chapter === id) out.push(i); });
+  return out;
+}
+function regionStory(r) {
+  const steps = regionSteps(r.id), t = curTurn(), seen = steps.filter(i => i <= S.idx).length;
+  if (!steps.length) return `<div><h5>${esc(r.name)}'s story</h5><span class="muted small">Nothing has happened here yet.</span></div>`;
+  const prev = steps.filter(i => t && i < t.first).pop(), next = steps.find(i => i > S.idx);
+  return `<div class="rstory"><h5>${esc(r.name)}'s story · beat ${seen} of ${steps.length}</h5>
+    <div class="btnrow"><button type="button" class="btn" ${prev != null ? `data-jump="${prev}"` : "disabled"}>◀ Previous here</button><button type="button" class="btn" ${next != null ? `data-jump="${next}"` : "disabled"}>Next here ▶</button></div>
+    <div class="hist">${steps.map((i, k) => { const e = EV[i], now = t && i >= t.first && i <= t.last, later = i > S.idx;
+      return `<button type="button" data-jump="${i}" class="${now ? "now" : ""}${later ? " later" : ""}"><b>${k + 1}. ${esc(e.title || "Untitled event")}</b><br><span class="muted">${esc(turnName(turnKey(e)))}${e.when ? " · " + esc(e.when) : ""}${later ? " · later in the story" : ""}</span></button>`; }).join("")}</div></div>`;
+}
+/* "Right now": one line per chapter, built from what is on the map at this turn. */
 function renderOverview() {
   const st = currentState();
   const rows = CHAPTERS.map(r => {
@@ -453,7 +478,7 @@ function renderOverview() {
     const last = eventsTouching(r.id)[0];
     return { r, d, here, top, last };
   }).sort((a, b) => b.d.lv - a.d.lv || a.r.name.localeCompare(b.r.name));
-  $("pane-overview").innerHTML = `<div><h3>The Abandoned Lands right now</h3><p class="small muted" style="margin:6px 0 0">Every chapter at this step of the story, most dangerous first. Click one for its full summary.</p></div>
+  $("pane-overview").innerHTML = `<div><h3>The Abandoned Lands right now</h3><p class="small muted" style="margin:6px 0 0">Every chapter at this turn of the story, most dangerous first. Click one for its full summary.</p></div>
     <div class="overview">${rows.map(({ r, d, here, top, last }) => `<button type="button" class="ovrow" data-goreg="${r.id}">
       <span class="ovname">${esc(r.name)}</span>${dangerPill(d)}${here.status ? `<span class="pill st-${here.status}">${STATUSES[here.status]}</span>` : ""}
       <span class="small muted ovline">${top.length ? esc(top.slice(0, 2).map(x => `${x.n} ${x.t}`).join(" · ")) : "No threats"}${last != null ? ` · Last: ${esc(EV[last].title || "Untitled event")}` : ""}</span></button>`).join("")}</div>`;
@@ -464,7 +489,7 @@ function renderThreats() {
   const maxS = Math.max(8, ...EVIL_ORDER.map(k => strength(st, k).s));
   const pane = $("pane-threats");
   const lesser = allThreats(st).sort((a, b) => b.tier - a.tier);
-  pane.innerHTML = `<div class="note">Strength adds up every tier the evil holds on the map at this step. Toggle an evil to hide it, or focus to dim the rest.</div>` + EVIL_ORDER.map(k => {
+  pane.innerHTML = `<div class="note">Strength adds up every tier the evil holds on the map at this turn. Toggle an evil to hide it, or focus to dim the rest.</div>` + EVIL_ORDER.map(k => {
     const E = EVILS[k], { s, regs } = strength(st, k), ps = strength(prev, k).s, d = s - ps;
     const trend = d > 0 ? `<span class="trend-up">▲ ${d}</span>` : d < 0 ? `<span class="trend-down">▼ ${-d}</span>` : `<span>steady</span>`;
     const on = !S.hidden.has(k);
@@ -473,13 +498,13 @@ function renderThreats() {
       <div class="evil-head">${swatch(k, 26)}<div class="grow"><div class="nm">${E.name}</div><div class="tg">${E.tagline} · “${esc(E.saying)}”</div></div>
         <button type="button" class="eye" data-eye="${k}" aria-pressed="${on}">${on ? "Shown" : "Hidden"}</button></div>
       <div class="meter"><span>Strength ${s}</span><span class="bar"><i style="width:${s / maxS * 100}%;background:var(--${k})"></i></span>${trend}</div>
-      <div class="chips">${regs.length ? regs.map(id => `<button type="button" class="chip" data-goreg="${id}">${esc(R[id].name)} · ${st[id].p[k]}</button>`).join("") : `<span class="muted small">Not on the map at this step.</span>`}</div>
+      <div class="chips">${regs.length ? regs.map(id => `<button type="button" class="chip" data-goreg="${id}">${esc(R[id].name)} · ${st[id].p[k]}</button>`).join("") : `<span class="muted small">Not on the map at this turn.</span>`}</div>
       <details><summary>Dossier</summary><dl style="margin-top:6px">
         <dt>Figurehead</dt><dd>${esc(fig)}</dd><dt>Wants</dt><dd>${esc(E.wants)}</dd><dt>Presses</dt><dd>${esc(E.presses)}</dd>
         <dt>On field</dt><dd>${esc(E.feel)}</dd><dt>Counterplay</dt><dd>${esc(E.counter)}</dd><dt>Defectors</dt><dd>${esc(E.defectors)}</dd></dl></details>
       <div class="btnrow"><button type="button" class="btn" data-focus="${k}" aria-pressed="${S.focus === k}">${S.focus === k ? "Clear focus" : "Focus on map"}</button></div>
     </div>`;
-  }).join("") + `<div><h5>Lesser evils and other threats</h5>${lesser.length ? `<div class="thrlist">${lesser.map(t => `<div class="thrrow">${thrSwatch(t, 20, true)}<div class="t">${esc(threatName(t))}<small>${esc(threatKind(t))}</small></div><button type="button" class="chip" data-goreg="${t.region}">${esc(R[t.region].name)}</button></div>`).join("")}</div>` : `<div class="muted small">None on the map at this step. Reps add them from a region's page or the Story log.</div>`}</div>`;
+  }).join("") + `<div><h5>Lesser evils and other threats</h5>${lesser.length ? `<div class="thrlist">${lesser.map(t => `<div class="thrrow">${thrSwatch(t, 20, true)}<div class="t">${esc(threatName(t))}<small>${esc(threatKind(t))}</small></div><button type="button" class="chip" data-goreg="${t.region}">${esc(R[t.region].name)}</button></div>`).join("")}</div>` : `<div class="muted small">None on the map at this turn. Reps add them from a region's page or the Story log.</div>`}</div>`;
 }
 function tierRow(k, total, own, ctrlAttrs, sub) {
   const ctrl = ctrlAttrs ? `<span class="stepper" role="group" aria-label="${EVILS[k].short} tier"><button type="button" ${ctrlAttrs} data-d="-1" aria-label="Lower tier">−</button><span>${own}</span><button type="button" ${ctrlAttrs} data-d="1" aria-label="Raise tier">+</button></span>` : `<b>${total || "–"}</b>`;
@@ -559,19 +584,12 @@ function renderRegion() {
   }).join("");
   html += `<div><h5>External Evils here</h5>${rows}${editing ? `<div class="btnrow" style="margin-top:8px"><label class="small" for="st-sel">Condition</label><select id="st-sel" class="btn">${["none", ...Object.keys(STATUSES)].map(s => `<option value="${s}" ${(here.status || "none") === s ? "selected" : ""}>${s === "none" ? "Holding (clear)" : STATUSES[s]}</option>`).join("")}</select></div><div class="note">Steppers here set region-wide strength. To place a force at a site, zoom in and click the site. Changes go into a draft event in the Story log; nothing is saved until you add it to the story.</div>` : ""}</div>`;
   const th = Object.values(here.threats).sort((a, b) => b.tier - a.tier);
-  html += `<div><h5>Lesser evils and other threats</h5>${threatRows(th, r.id, editing) || `<div class="muted small">None here at this step.</div>`}${editing ? `<div class="btnrow" style="margin-top:6px"><button type="button" class="btn" data-addthr="">+ Add a lesser evil or threat</button></div>` : ""}</div>`;
+  html += `<div><h5>Lesser evils and other threats</h5>${threatRows(th, r.id, editing) || `<div class="muted small">None here at this turn.</div>`}${editing ? `<div class="btnrow" style="margin-top:6px"><button type="button" class="btn" data-addthr="">+ Add a lesser evil or threat</button></div>` : ""}</div>`;
   const mks = Object.values(here.marks);
-  html += `<div><h5>Pinpoints</h5>${markRows(mks, r.id, editing) || `<div class="muted small">No pinpoints here at this step.</div>`}${editing ? `<div class="btnrow" style="margin-top:6px"><button type="button" class="btn" data-addmark="">+ Pinpoint on the map</button></div><div class="note">Mark story moments, camps, battles or places of interest. Click the region's map to place it.</div>` : ""}</div>`;
+  html += `<div><h5>Pinpoints</h5>${markRows(mks, r.id, editing) || `<div class="muted small">No pinpoints here at this turn.</div>`}${editing ? `<div class="btnrow" style="margin-top:6px"><button type="button" class="btn" data-addmark="">+ Pinpoint on the map</button></div><div class="note">Mark story moments, camps, battles or places of interest. Click the region's map to place it.</div>` : ""}</div>`;
   if (r.gov) html += `<div class="region"><h5>The town</h5><dl><dt>Governance</dt><dd>${esc(r.gov)}</dd><dt>Economy</dt><dd>${esc(r.econ)}</dd><dt>Tensions</dt><dd>${esc(r.tens)}</dd></dl></div>`;
   if (r.orbit && r.orbit.length) html += `<div><h5>Regional orbit</h5><div class="chips">${r.orbit.map(o => `<span class="chip">${esc(o)}</span>`).join("")}</div></div>`;
-  const hist = [];
-  const upto = S.draft && S.draft.changes.length ? EV.length - 1 : S.idx;
-  for (let i = 0; i <= upto; i++) {
-    const e = EV[i]; if (!e) continue;
-    const touches = (e.changes || []).some(c => c.region === r.id || c.from === r.id || c.to === r.id) || e.chapter === r.id;
-    if (touches) hist.push(`<button type="button" data-jump="${i}"><b>${i + 1}. ${esc(e.title)}</b><br><span class="muted">${esc(e.when || "")}</span></button>`);
-  }
-  html += `<div><h5>History to this step</h5><div class="hist">${hist.length ? hist.join("") : `<span class="muted small">Nothing has happened here yet.</span>`}</div></div>`;
+  html += regionStory(r);
   pane.innerHTML = html;
 }
 
@@ -605,7 +623,7 @@ function aheadBox(r) {
 
 /* ---------- Draft editing ---------- */
 function defaultChapter() { const mine = myChapters(); if (isNST()) return "national"; return mine[0] || "national"; }
-function newDraft() { return { id: null, title: "", when: "", chapter: defaultChapter(), visibility: "story", summary: "", changes: [] }; }
+function newDraft() { return { id: null, title: "", when: "", chapter: defaultChapter(), visibility: "story", summary: "", changes: [], turn: openTurnKey() }; }
 function ensureDraft() { if (!S.draft) S.draft = newDraft(); return S.draft; }
 function claimChapter(dr, id) { if (R[id]?.kind === "chapter" && dr.chapter === "national" && (isNST() || myChapters().includes(id))) dr.chapter = id; }
 function stepTier(evil, d, site) {
@@ -768,7 +786,9 @@ function renderLog() {
     else {
       const dr = S.draft, warns = draftWarnings(dr), blocked = !isNST() && warns.some(w => w.nst);
       const chapterOpts = (isNST() ? `<option value="national">National</option>` : "") + regionOptions(dr.chapter, r => r.kind === "chapter" && (isNST() || myChapters().includes(r.id)));
-      html += `<div class="draft"><div class="lbl">${dr.id ? "Editing event" : "New event"} · goes ${dr.id ? "in its current place" : "after step " + EV.length}</div>
+      const turnOpts = [...new Set([...allTurnKeys(), +dr.turn])].sort((a, b) => a - b).map(k => opt(k, turnName(k) + (k === openTurnKey() ? " (current)" : ""), dr.turn)).join("");
+      html += `<div class="draft"><div class="lbl">${dr.id ? "Editing event" : "New event"} · goes into ${esc(turnName(dr.turn))}</div>
+        ${isNST() ? `<div class="field"><label class="lbl" for="d-turn">Turn</label><select id="d-turn">${turnOpts}</select></div>` : ""}
         <div class="field"><label class="lbl" for="d-title">Title</label><input id="d-title" value="${esc(dr.title)}" placeholder="e.g. The bells of the barrow road"></div>
         <div class="row2"><div class="field"><label class="lbl" for="d-when">When</label><input id="d-when" value="${esc(dr.when)}" placeholder="Season, event or date"></div>
         <div class="field"><label class="lbl" for="d-ch">Chapter</label><select id="d-ch">${chapterOpts}</select></div></div>
@@ -784,18 +804,32 @@ function renderLog() {
   } else {
     html += `<div class="note">${Store.mode === "sheets" ? "Chapter NST Reps can sign in with their rep code to record events." : Store.mode === "claude" ? "You can view the story. Ask the map's owner for edit access to record events." : "This copy isn't connected to the shared story sheet yet."}</div>`;
   }
-  html += `<div class="lbl">The story so far · ${EV.length} step${EV.length === 1 ? "" : "s"} visible to ${VIS[S.layer]}</div>`;
-  html += EV.map((e, i) => {
+  const ok = openTurnKey();
+  html += `<div class="turnbox"><div><span class="lbl">Current turn</span><br><b>${esc(turnName(ok))}</b></div>
+    <div class="note">New entries go into this turn. ${isNST() ? "Open a new turn when the national story moves on." : "The NST Team opens each new turn."}</div>
+    ${isNST() && !S.usingFallback ? `<details class="dset"><summary>Open a new turn or rename this one</summary><label class="lbl" for="turn-label">Turn name</label><input id="turn-label" placeholder="e.g. November 2026 or The Long Winter">
+      <div class="btnrow"><button type="button" class="btn primary" id="turn-open">Open turn ${allTurnKeys().length + 1}</button><button type="button" class="btn" id="turn-rename">Rename turn ${turnNo(ok)}</button></div></details>` : ""}</div>`;
+  const chs = [...new Set(EV.map(e => e.chapter).filter(c => R[c]))];
+  html += `<div class="field"><label class="lbl" for="log-filter">Whose story</label><select id="log-filter">${opt("", "The whole Abandoned Lands", S.logFilter)}${CHAPTERS.filter(r => chs.includes(r.id) || r.id === S.logFilter).map(r => opt(r.id, r.name, S.logFilter)).join("")}</select></div>`;
+  const fsteps = S.logFilter ? regionSteps(S.logFilter) : null;
+  html += `<div class="lbl">${fsteps ? `${esc(R[S.logFilter].name)}'s story · ${fsteps.length} beat${fsteps.length === 1 ? "" : "s"}` : `The story so far · ${TURNS.length} turn${TURNS.length === 1 ? "" : "s"}, ${EV.length} entr${EV.length === 1 ? "y" : "ies"}`} visible to ${VIS[S.layer]}</div>`;
+  const ct = curTurn();
+  html += TURNS.map(t => {
+    const rows = [];
+    for (let i = t.first; i <= t.last; i++) if (!fsteps || fsteps.includes(i)) rows.push(i);
+    if (!rows.length) return "";
+    return `<div class="turnhead${t === ct ? " cur" : ""}"><button type="button" data-jump="${t.last}">${esc(turnName(t.key))}</button><span class="muted small">${t.events.length} entr${t.events.length === 1 ? "y" : "ies"}</span></div>` + rows.map(i => {
+    const e = EV[i];
     const ch = e.chapter && R[e.chapter] ? R[e.chapter].name : "National";
     const del = S.confirmDel === e.id, mine = !S.usingFallback && canEditEvent(e);
     const acts = mine ? (del
       ? `<button type="button" class="btn danger" data-delok="${e.id}">Delete</button><button type="button" data-delno="1">Keep</button>`
-      : `${isNST() ? `<button type="button" data-up="${i}" aria-label="Move earlier" ${i === 0 ? "disabled" : ""}>↑</button><button type="button" data-down="${i}" aria-label="Move later" ${i === EV.length - 1 ? "disabled" : ""}>↓</button>` : ""}<button type="button" data-edit="${e.id}">Edit</button><button type="button" data-del="${e.id}" aria-label="Delete event">✕</button>`) : "";
-    return `<div class="ev ${i === S.idx && !(S.draft && S.draft.changes.length) ? "cur" : ""}"><div class="n">${i + 1}</div><div style="min-width:0"><button type="button" data-jump="${i}" style="border:0;background:none;padding:0;text-align:left" class="tt">${esc(e.title)}</button>
+      : `${isNST() && t.events.length > 1 ? `<button type="button" data-up="${i}" aria-label="Move earlier in the turn" ${i === t.first ? "disabled" : ""}>↑</button><button type="button" data-down="${i}" aria-label="Move later in the turn" ${i === t.last ? "disabled" : ""}>↓</button>` : ""}<button type="button" data-edit="${e.id}">Edit</button><button type="button" data-del="${e.id}" aria-label="Delete event">✕</button>`) : "";
+    return `<div class="ev ${t === ct && !(S.draft && S.draft.changes.length) ? "cur" : ""}"><div class="n">${fsteps ? fsteps.indexOf(i) + 1 : "•"}</div><div style="min-width:0"><button type="button" data-jump="${i}" style="border:0;background:none;padding:0;text-align:left" class="tt">${esc(e.title)}</button>
       <div class="mm"><span>${esc(e.when || "")}</span><span>${esc(ch)}</span><span class="pill vis-${e.visibility || "public"}">${VIS[e.visibility || "public"]}</span>${e.example ? `<span class="pill ex">Example</span>` : ""}${e.updatedBy ? `<span>by ${esc(e.updatedBy)}</span>` : ""}</div></div><div class="acts">${acts}</div></div>`;
-  }).join("");
+  }).join(""); }).join("");
   if (isNST() && !S.usingFallback && S.events.some(e => e.example)) html += `<div class="btnrow"><button type="button" class="btn" id="clear-ex">Remove the example events</button></div>`;
-  if (isNST() && S.usingFallback && S.loaded) html += `<div class="btnrow"><button type="button" class="btn big" id="seed-open">Save the opening positions as step 1</button></div>`;
+  if (isNST() && S.usingFallback && S.loaded) html += `<div class="btnrow"><button type="button" class="btn big" id="seed-open">Save the opening positions as turn 1</button></div>`;
   html += `<details class="setup" ${S.layoutMode ? "open" : ""}><summary>Map setup</summary>
     ${isNST() ? `<div class="btnrow"><button type="button" class="btn big" id="lay-toggle" aria-pressed="${S.layoutMode}">${S.layoutMode ? "Done arranging" : "Arrange places on the map"}</button><button type="button" class="btn" id="lay-reset">Reset positions</button></div>
     <div class="note">Drag towns, fronts and waters to move them. Territories redraw around them and the change is shared.</div>` : `<div class="note">Arranging the main map is for the NST Team. Reps can add and move sites inside their own region's map.</div>`}
@@ -808,7 +842,7 @@ const clean = o => JSON.parse(JSON.stringify(o));
 async function saveDraft() {
   const dr = S.draft; if (!dr || !dr.title.trim() || !canDraft()) return;
   if (!isNST() && draftWarnings(dr).some(w => w.nst)) { toast("This change needs the NST Team"); return; }
-  const body = clean({ title: dr.title.trim(), when: dr.when.trim(), chapter: dr.chapter || "national", visibility: dr.visibility || "story", summary: dr.summary.trim(),
+  const body = clean({ turn: dr.turn ?? openTurnKey(), title: dr.title.trim(), when: dr.when.trim(), chapter: dr.chapter || "national", visibility: dr.visibility || "story", summary: dr.summary.trim(),
     changes: dr.changes.map(c => { const o = { ...c }; if (o.tier !== undefined) o.tier = +o.tier; for (const k of ["site", "fromSite", "toSite"]) if (o[k] === "") delete o[k]; for (const k of ["x", "y"]) if (o[k] == null) delete o[k]; return o; }),
     updatedBy: Store.me.name || "", updatedAt: new Date().toISOString() });
   try {
@@ -920,7 +954,7 @@ document.addEventListener("click", async e => {
   if (d.openreg) { openRegion(d.openreg); return; }
   if (d.closereg) { closeRegion(); return; }
   if (d.unsite) { S.site = null; renderRegionView({ fresh: false }); renderSide(); return; }
-  if (d.jump) { stop(); if (S.draft && !S.draft.changes.length) S.draft = null; goTo(+d.jump, +d.jump === S.idx + 1); return; }
+  if (d.jump) { stop(); if (S.draft && !S.draft.changes.length) S.draft = null; goTo(+d.jump, true); return; }
   if (d.step) { stepTier(d.step, +d.d, d.site || null); return; }
   if (d.addthr !== undefined) { addThreat(d.addthr); return; }
   if (d.addclash) { const dr = ensureDraft(); dr.changes.push(freshChange("clash", S.selected)); claimChapter(dr, S.selected); S.tab = "log"; refreshAll(false); return; }
@@ -969,12 +1003,20 @@ document.addEventListener("click", async e => {
     try { await Store.saveNote(S.selected, note); S.notes[S.selected] = note; toast("Notes saved"); renderSide(); } catch (x) { toast("Couldn't save the notes: " + (x?.message || "")); }
     return;
   }
+  if (t.id === "turn-open" || t.id === "turn-rename") {
+    const cur = S.settings.turns || {}, labels = { ...(cur.labels || {}) }, label = $("turn-label").value.trim();
+    const key = t.id === "turn-open" ? Math.max(...allTurnKeys(), 0) + 1 : openTurnKey();
+    if (t.id === "turn-rename" && !label) { toast("Type the turn's new name"); return; }
+    if (label) labels[key] = label; else delete labels[key];
+    const msg = t.id === "turn-open" ? `Turn ${allTurnKeys().length + 1} is open` : "Turn renamed";
+    await saveSetting("turns", { open: key, labels }, msg); return;
+  }
   if (t.id === "d-new") { S.draft = newDraft(); S.idx = EV.length - 1; refreshAll(false); return; }
   if (t.id === "d-cancel") { S.draft = null; refreshAll(false); return; }
   if (t.id === "d-save") { await saveDraft(); return; }
   if (d.addc) { const dr = ensureDraft(); dr.changes.push(freshChange(d.addc)); claimChapter(dr, S.selected); refreshAll(false); return; }
   if (d.delc !== undefined) { S.draft.changes.splice(+d.delc, 1); refreshAll(false); return; }
-  if (d.edit) { const ev = S.events.find(x => x.id === d.edit); if (ev) { S.draft = clean({ id: ev.id, title: ev.title || "", when: ev.when || "", chapter: ev.chapter || "national", visibility: ev.visibility || "story", summary: ev.summary || "", changes: ev.changes || [] }); S.tab = "log"; refreshAll(false); } return; }
+  if (d.edit) { const ev = S.events.find(x => x.id === d.edit); if (ev) { S.draft = clean({ id: ev.id, title: ev.title || "", when: ev.when || "", chapter: ev.chapter || "national", visibility: ev.visibility || "story", summary: ev.summary || "", changes: ev.changes || [], turn: turnKey(ev) }); S.tab = "log"; refreshAll(false); } return; }
   if (d.del) { S.confirmDel = d.del; renderLog(); return; }
   if (d.delno) { S.confirmDel = null; renderLog(); return; }
   if (d.delok) { S.confirmDel = null; try { await Store.deleteEvent(d.delok); toast("Event deleted"); } catch (x) { toast("Couldn't delete: " + (x?.message || "")); } return; }
@@ -1000,12 +1042,12 @@ document.addEventListener("keydown", e => {
     if (RV.id) { closeRegion(); return; }
   }
   if (e.target.closest("input, textarea, select")) return;
-  if (e.key === "ArrowRight") { stop(); goTo(S.idx + 1, true); }
-  if (e.key === "ArrowLeft") { stop(); goTo(S.idx - 1, false); }
+  if (e.key === "ArrowRight") { stop(); stepTurn(1); }
+  if (e.key === "ArrowLeft") { stop(); stepTurn(-1); }
 });
 document.addEventListener("input", e => {
   const t = e.target;
-  if (t.id === "scrub") { stop(); goTo(+t.value, false); return; }
+  if (t.id === "scrub") { stop(); if (TURNS[+t.value]) goTo(TURNS[+t.value].last, false); return; }
   if (!S.draft) return;
   if (t.id === "d-title") { S.draft.title = t.value; const b = $("d-save"); if (b) b.disabled = !t.value.trim() || (!isNST() && draftWarnings(S.draft).some(w => w.nst)); return; }
   if (t.id === "d-when") { S.draft.when = t.value; return; }
@@ -1016,9 +1058,11 @@ document.addEventListener("change", async e => {
   const t = e.target;
   if ((t.id && t.id.startsWith("ly-")) || t.id === "rv-names") { try { const o = {}; document.querySelectorAll(".layers input, #rv-names").forEach(i => o[i.id] = i.checked); localStorage.setItem("alwm.layers", JSON.stringify(o)); } catch (x) {} renderMap({ fresh: false }); return; }
   if (t.id === "st-sel") { setStatus(t.value); return; }
+  if (t.id === "log-filter") { S.logFilter = t.value; renderSide(); return; }
   if (!S.draft) return;
   if (t.id === "d-ch") { S.draft.chapter = t.value; refreshAll(false); return; }
   if (t.id === "d-vis") { S.draft.visibility = t.value; return; }
+  if (t.id === "d-turn") { S.draft.turn = +t.value; renderSide(); return; }
   if (t.dataset.ci !== undefined) {
     const i = +t.dataset.ci, c = S.draft.changes[i], f = t.dataset.f;
     if (f === "type") S.draft.changes[i] = freshChange(t.value, c.region || c.to);
@@ -1042,16 +1086,16 @@ document.addEventListener("change", async e => {
   }
 });
 $("tl-first").onclick = () => { stop(); goTo(0, false); };
-$("tl-prev").onclick = () => { stop(); goTo(S.idx - 1, false); };
-$("tl-next").onclick = () => { stop(); goTo(S.idx + 1, true); };
+$("tl-prev").onclick = () => { stop(); stepTurn(-1); };
+$("tl-next").onclick = () => { stop(); stepTurn(1); };
 $("tl-play").onclick = () => { S.playing ? stop() : play(); };
 let playTimer = null;
 function play() {
-  if (EV.length < 2) return;
+  if (TURNS.length < 2) return;
   if (S.draft && S.draft.changes.length) { toast("Finish or discard the draft to play the story"); return; }
   S.draft = null;
   S.playing = true; if (S.idx >= EV.length - 1) goTo(0, false); else renderChrome();
-  const tick = () => { if (!S.playing) return; if (S.idx >= EV.length - 1) { stop(); return; } goTo(S.idx + 1, true); playTimer = setTimeout(tick, 2600); };
+  const tick = () => { if (!S.playing) return; if (S.idx >= EV.length - 1) { stop(); return; } stepTurn(1); playTimer = setTimeout(tick, 2600); };
   playTimer = setTimeout(tick, 900);
 }
 function stop() { S.playing = false; clearTimeout(playTimer); $("tl-play").textContent = "▶"; $("tl-play").setAttribute("aria-label", "Play the story"); }
@@ -1066,11 +1110,11 @@ async function exportJSON() {
 
 function refreshAll(fresh) {
   rebuild();
-  if (S.jumpToId) { const i = EV.findIndex(e => e.id === S.jumpToId); if (i >= 0) S.idx = i; S.jumpToId = null; }
+  if (S.jumpToId) { const i = EV.findIndex(e => e.id === S.jumpToId); if (i >= 0) S.idx = TURNS[turnIndexOf(i)].last; S.jumpToId = null; }
   renderMap({ fresh: !!fresh }); renderChrome();
 }
 function setSettings(o) {
-  S.settings = { notice: o.notice || { text: NOTICE_TEXT, done: [] }, regions: o.regions || {}, danger: o.danger || {}, calendar: o.calendar || {} };
+  S.settings = { notice: o.notice || { text: NOTICE_TEXT, done: [] }, regions: o.regions || {}, danger: o.danger || {}, calendar: o.calendar || {}, turns: o.turns || {} };
   applyRegionInfo();
 }
 function applyData(d, first) {
@@ -1108,7 +1152,7 @@ async function startClaude() {
   db.collection("events").onSnapshot(snap => { applyData({ events: snap.docs.map(x => ({ id: x.id, ...x.data() })) }, first); first = false; }, err => toast("The story log couldn't load: " + (err?.message || "")));
   db.collection("sites").onSnapshot(snap => { S.sites = Object.fromEntries(snap.docs.map(x => [x.id, { id: x.id, ...x.data() }])); renderRegionView({ fresh: false }); if (S.tab === "region") renderSide(); }, () => {});
   db.collection("notes").onSnapshot(snap => { S.notes = Object.fromEntries(snap.docs.map(x => [x.id, x.data()])); if (S.tab === "region") renderSide(); }, () => {});
-  ["notice", "regions", "danger", "calendar"].forEach(key => db.doc("settings/" + key).onSnapshot(snap => { if (snap.exists) { setSettings({ ...S.settings, [key]: snap.data()?.value }); renderMap({ fresh: false }); renderChrome(); } }, () => {}));
+  ["notice", "regions", "danger", "calendar", "turns"].forEach(key => db.doc("settings/" + key).onSnapshot(snap => { if (snap.exists) { setSettings({ ...S.settings, [key]: snap.data()?.value }); renderMap({ fresh: false }); renderChrome(); } }, () => {}));
   db.doc("settings/layout").onSnapshot(snap => { if (drag && drag.mode === "city") return; S.positions = (snap.exists && snap.data()?.positions) || {}; renderMap({ fresh: false }); }, () => {});
   return true;
 }

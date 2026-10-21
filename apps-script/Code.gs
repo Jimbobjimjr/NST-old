@@ -6,7 +6,7 @@
  * (Execute as: Me, Who has access: Anyone). Put the web app URL in config.js.
  *
  * Tabs it uses:
- *   Events   one row per story event; `changes` holds the map changes as JSON
+ *   Events   one row per story event; `changes` holds the map changes as JSON; `turn` groups entries into turns of the national story
  *   Sites    places reps add or move on their region maps
  *   Notes    the "current situation" text for each region
  *   Reps     who can edit: code, name, role (story | rep | nst | lead), chapters
@@ -18,7 +18,7 @@
  */
 
 var TABS = {
-  Events: ['id', 'order', 'title', 'when', 'chapter', 'visibility', 'summary', 'changes', 'example', 'createdAt', 'updatedBy', 'updatedAt'],
+  Events: ['id', 'order', 'turn', 'title', 'when', 'chapter', 'visibility', 'summary', 'changes', 'example', 'createdAt', 'updatedBy', 'updatedAt'],
   Sites: ['id', 'region', 'name', 'x', 'y', 'note', 'story', 'hidden', 'custom', 'updatedBy', 'updatedAt'],
   Notes: ['region', 'public', 'story', 'updatedBy', 'updatedAt'],
   Reps: ['code', 'name', 'role', 'chapters', 'active'],
@@ -96,6 +96,9 @@ function act(me, b) {
       if (existing && !canEditChapter(me, existing.chapter)) throw new Error('That event belongs to another chapter.');
       if (!canEditChapter(me, ev.chapter)) throw new Error('You can only record events for your own chapter.');
       checkTiers(me, ev.changes || []);
+      // Reps post into the turn the NST Team has open; only the NST Team moves an entry to another turn.
+      if (existing && (!isNst(me) || ev.turn === undefined || ev.turn === '')) ev.turn = existing.turn;
+      else if (!existing && (!isNst(me) || ev.turn === undefined || ev.turn === '')) ev.turn = openTurn();
       if (!ev.id) ev.id = 'ev' + Date.now().toString(36);
       if (existing) { ev.order = existing.order; ev.createdAt = existing.createdAt; ev.example = existing.example; }
       if (ev.order === undefined || ev.order === '') ev.order = nextOrder();
@@ -165,6 +168,7 @@ function act(me, b) {
       if (b.key === 'notice') { if (!isNst(me)) throw new Error('Only the NST Team can change the map notice.'); }
       else if (b.key === 'regions') { if (me.role !== 'lead') throw new Error('Only the NST Lead can rename places on the map.'); }
       else if (b.key === 'danger') { if (!isNst(me)) throw new Error('Only the NST Team can set a danger level by hand.'); }
+      else if (b.key === 'turns') { if (!isNst(me)) throw new Error('Only the NST Team can open a new turn.'); }
       else if (b.key === 'calendar') { if (!isNst(me)) throw new Error('Only the NST Team can change the calendar link.'); }
       else throw new Error('Unknown setting ' + b.key);
       writeRow('Settings', 'key', { key: b.key, value: JSON.stringify(b.value === undefined ? null : b.value) });
@@ -278,6 +282,8 @@ function load(me) {
   var settings = { regions: regions ? safeJSON(regions.value, {}) : {} };
   if (notice) settings.notice = safeJSON(notice.value, null) || undefined;
   if (danger) settings.danger = safeJSON(danger.value, {});
+  var turns = findRow('Settings', 'key', 'turns');
+  if (turns) settings.turns = safeJSON(turns.value, {});
   var cal = findRow('Settings', 'key', 'calendar');
   if (cal) settings.calendar = safeJSON(cal.value, {});
   var dispatches = readRows('Dispatches').filter(function (r) { return r.id; }).map(function (r) {
@@ -330,6 +336,13 @@ function checkTiers(me, changes) {
     if (c.type === 'threat' && c.kind === 'lesser' && +c.tier > LESSER_MAX) throw new Error('Lesser Evils stop at tier 3. The NST Team decides anything beyond that.');
   });
 }
+/* Entries saved before turns existed are each their own turn, keyed by their order. */
+function turnKeyOf(r) { return r.turn === '' || r.turn === undefined || r.turn === null ? num(r.order) : num(r.turn); }
+function openTurn() {
+  var m = 0; readRows('Events').forEach(function (r) { if (r.id) m = Math.max(m, turnKeyOf(r)); });
+  var t = findRow('Settings', 'key', 'turns'), open = t ? safeJSON(t.value, {}).open : undefined;
+  return open === undefined || open === null ? m : Math.max(m, num(open));
+}
 function nextOrder() { var m = -1; readRows('Events').forEach(function (r) { m = Math.max(m, num(r.order)); }); return m + 1; }
 
 /* ---------- Sheet helpers ---------- */
@@ -372,11 +385,11 @@ function deleteRow(name, key, val) {
   for (var i = keys.length - 1; i >= 0; i--) if (String(keys[i][0]) === String(val)) sh.deleteRow(i + 2);
 }
 function eventToRow(ev) {
-  return { id: ev.id, order: num(ev.order), title: ev.title || '', when: ev.when || '', chapter: ev.chapter || 'national', visibility: ev.visibility || 'story', summary: ev.summary || '',
+  return { id: ev.id, order: num(ev.order), turn: ev.turn === undefined || ev.turn === null || ev.turn === '' ? '' : num(ev.turn), title: ev.title || '', when: ev.when || '', chapter: ev.chapter || 'national', visibility: ev.visibility || 'story', summary: ev.summary || '',
     changes: JSON.stringify(ev.changes || []), example: !!ev.example, createdAt: ev.createdAt || new Date().toISOString(), updatedBy: ev.updatedBy || '', updatedAt: ev.updatedAt || '' };
 }
 function rowToEvent(r) {
-  return { id: String(r.id), order: num(r.order), title: r.title, when: String(r.when || ''), chapter: r.chapter || 'national', visibility: r.visibility || 'public', summary: r.summary || '',
+  return { id: String(r.id), order: num(r.order), turn: r.turn === '' || r.turn === undefined ? undefined : num(r.turn), title: r.title, when: String(r.when || ''), chapter: r.chapter || 'national', visibility: r.visibility || 'public', summary: r.summary || '',
     changes: safeJSON(r.changes, []), example: r.example === true || r.example === 'TRUE', createdAt: iso(r.createdAt), updatedBy: r.updatedBy || '', updatedAt: iso(r.updatedAt) };
 }
 function log(me, action, detail) { try { sheet('Log').appendRow([new Date(), me.name, action, String(detail || '').slice(0, 200)]); } catch (e) {} }
