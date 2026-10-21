@@ -10,7 +10,10 @@
  *   Sites    places reps add or move on their region maps
  *   Notes    the "current situation" text for each region
  *   Reps     who can edit: code, name, role (story | rep | nst | lead), chapters
- *   Settings map layout, the region map notice, renamed places, danger levels set by hand
+ *   Settings map layout, the region map notice, renamed places, danger levels set by hand, the calendar link
+ *   Dispatches  news for players, written by each chapter's story team
+ *   Calendar    upcoming chapter events; the plan and main threat are for story teams only
+ *   Requests    chapter requests; only the chapters involved and the NST Team see them, only the NST Lead decides
  *   Log      every change, who made it and when
  */
 
@@ -20,12 +23,18 @@ var TABS = {
   Notes: ['region', 'public', 'story', 'updatedBy', 'updatedAt'],
   Reps: ['code', 'name', 'role', 'chapters', 'active'],
   Settings: ['key', 'value'],
+  Dispatches: ['id', 'chapter', 'title', 'body', 'when', 'pinned', 'createdBy', 'createdAt', 'updatedAt'],
+  Calendar: ['id', 'date', 'chapter', 'name', 'link', 'plan', 'evil', 'updatedBy', 'updatedAt'],
+  Requests: ['id', 'chapter', 'affects', 'text', 'status', 'reply', 'comments', 'createdBy', 'createdAt', 'decidedBy', 'decidedAt'],
   Log: ['time', 'who', 'action', 'detail']
 };
 var CHAPTERS = ['ritterstein', 'kreigstor', 'bracken', 'eisendreieck', 'sudenburg', 'stromstadt', 'braylong', 'handelsdorf', 'weitnordlich', 'helsreik', 'reefwatch'];
 var VIS_RANK = { 'public': 0, story: 1, nst: 2 };
 var ROLE_RANK = { viewer: 0, story: 1, rep: 2, nst: 2, lead: 2 };
 var LESSER_MAX = 3;
+var REQUEST_STATUS = ['waiting', 'approved', 'changes', 'declined'];
+/* What a story team code may do: details on places, dispatches, calendar entries and requests for its own chapters. */
+var STORY_ACTIONS = ['saveSite', 'saveDispatch', 'deleteDispatch', 'saveCal', 'deleteCal', 'saveRequest', 'commentRequest', 'deleteRequest'];
 
 var OPENING = { id: 'opening', order: 0, title: 'Opening positions', when: 'NST Guidebook, October 2026', chapter: 'national', visibility: 'public',
   summary: 'Where each External Evil presses at the start of the story, as the guidebook sets out. Tokens show pressure on that front, using the Power Scale.',
@@ -45,7 +54,7 @@ function setup() {
   if (readRows('Events').length === 0) writeRow('Events', 'id', eventToRow(OPENING));
   if (readRows('Reps').length === 0) {
     var code = 'nst-' + Utilities.getUuid().slice(0, 8);
-    sheet('Reps').appendRow([code, 'NST lead', 'nst', 'all', true]);
+    sheet('Reps').appendRow([code, 'NST Lead', 'nst', 'all', true]);
     Logger.log('Your NST code is ' + code + '. Add a row in the Reps tab for each chapter rep.');
   }
   ss.getSheetByName('Sheet1') && ss.getSheetByName('Sheet1').getLastRow() === 0 && ss.deleteSheet(ss.getSheetByName('Sheet1'));
@@ -66,7 +75,7 @@ function doPost(e) {
   try { body = JSON.parse(e.postData.contents); } catch (err) { return json({ ok: false, error: 'Bad request' }); }
   var me = auth(body.code);
   if (!me) return json({ ok: false, error: 'That rep code is not recognised.' });
-  if (me.role === 'story' && body.action !== 'saveSite') return json({ ok: false, error: 'Story team codes can add details to places, but not change the story.' });
+  if (me.role === 'story' && STORY_ACTIONS.indexOf(body.action) < 0) return json({ ok: false, error: 'Story team codes can add details to places, write dispatches, calendar entries and requests, but not change the story.' });
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -104,7 +113,7 @@ function act(me, b) {
       return {};
     }
     case 'reorder': {
-      if (!isNst(me)) throw new Error('Only the NST can reorder the story.');
+      if (!isNst(me)) throw new Error('Only the NST Team can reorder the story.');
       (b.orders || []).forEach(function (o) { var r = findRow('Events', 'id', o.id); if (r) { r.order = o.order; writeRow('Events', 'id', r); } });
       log(me, 'reorder', (b.orders || []).length + ' events');
       return {};
@@ -122,7 +131,7 @@ function act(me, b) {
       } else {
         if (!canEditRegion(me, s.region)) throw new Error('You can only change sites in your own region.');
         var named = s.name !== undefined && String(s.name).trim() !== '' && String(s.name) !== String(cur.name || '');
-        if (named && !custom && me.role !== 'lead') throw new Error('Only the NST lead can rename the map\'s own places.');
+        if (named && !custom && me.role !== 'lead') throw new Error('Only the NST Lead can rename the map\'s own places.');
         ['name', 'x', 'y', 'note', 'story', 'hidden'].forEach(function (k) { if (s[k] !== undefined) cur[k] = s[k]; });
       }
       cur.custom = custom;
@@ -147,18 +156,103 @@ function act(me, b) {
       return {};
     }
     case 'savePositions': {
-      if (!isNst(me)) throw new Error('Only the NST can rearrange the main map.');
+      if (!isNst(me)) throw new Error('Only the NST Team can rearrange the main map.');
       writeRow('Settings', 'key', { key: 'positions', value: JSON.stringify(b.positions || {}) });
       log(me, 'layout', '');
       return {};
     }
     case 'saveSetting': {
-      if (b.key === 'notice') { if (!isNst(me)) throw new Error('Only the NST can change the map notice.'); }
-      else if (b.key === 'regions') { if (me.role !== 'lead') throw new Error('Only the NST lead can rename places on the map.'); }
-      else if (b.key === 'danger') { if (!isNst(me)) throw new Error('Only the NST can set a danger level by hand.'); }
+      if (b.key === 'notice') { if (!isNst(me)) throw new Error('Only the NST Team can change the map notice.'); }
+      else if (b.key === 'regions') { if (me.role !== 'lead') throw new Error('Only the NST Lead can rename places on the map.'); }
+      else if (b.key === 'danger') { if (!isNst(me)) throw new Error('Only the NST Team can set a danger level by hand.'); }
+      else if (b.key === 'calendar') { if (!isNst(me)) throw new Error('Only the NST Team can change the calendar link.'); }
       else throw new Error('Unknown setting ' + b.key);
       writeRow('Settings', 'key', { key: b.key, value: JSON.stringify(b.value === undefined ? null : b.value) });
       log(me, 'setting', b.key);
+      return {};
+    }
+    case 'saveDispatch': {
+      var d = b.item || {}, oldD = d.id ? findRow('Dispatches', 'id', d.id) : null;
+      if (oldD && !canWrite(me, oldD.chapter)) throw new Error('That dispatch belongs to another chapter.');
+      if (!canWrite(me, d.chapter)) throw new Error('You can only write dispatches for your own chapter.');
+      if (!String(d.title || '').trim()) throw new Error('A dispatch needs a headline.');
+      var rowD = oldD || { id: newId('d'), createdBy: me.name, createdAt: now };
+      rowD.chapter = d.chapter; rowD.title = String(d.title).trim(); rowD.body = d.body || ''; rowD.when = d.when || '';
+      rowD.pinned = isNst(me) ? !!d.pinned : truthy(rowD.pinned); rowD.updatedAt = now;
+      writeRow('Dispatches', 'id', rowD);
+      log(me, oldD ? 'edit dispatch' : 'add dispatch', rowD.title);
+      return { id: rowD.id };
+    }
+    case 'deleteDispatch': {
+      var dd = findRow('Dispatches', 'id', b.id);
+      if (!dd) return {};
+      if (!canWrite(me, dd.chapter)) throw new Error('That dispatch belongs to another chapter.');
+      deleteRow('Dispatches', 'id', b.id);
+      log(me, 'delete dispatch', dd.title);
+      return {};
+    }
+    case 'saveCal': {
+      var c = b.item || {}, oldC = c.id ? findRow('Calendar', 'id', c.id) : null;
+      if (oldC && !canWrite(me, oldC.chapter)) throw new Error('That calendar entry belongs to another chapter.');
+      if (!canWrite(me, c.chapter) || c.chapter === 'national' && !isNst(me)) throw new Error('You can only add events for your own chapter.');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(c.date || ''))) throw new Error('A calendar entry needs a date.');
+      if (!String(c.name || '').trim()) throw new Error('A calendar entry needs a name.');
+      var rowC = oldC || { id: newId('c') };
+      // A leading apostrophe keeps Sheets from turning the date into a time zone-shifted date value.
+      rowC.date = "'" + c.date; rowC.chapter = c.chapter; rowC.name = String(c.name).trim(); rowC.link = c.link || ''; rowC.plan = c.plan || ''; rowC.evil = c.evil || '';
+      rowC.updatedBy = me.name; rowC.updatedAt = now;
+      writeRow('Calendar', 'id', rowC);
+      log(me, oldC ? 'edit calendar' : 'add calendar', c.date + ' ' + rowC.name);
+      return { id: rowC.id };
+    }
+    case 'deleteCal': {
+      var cc = findRow('Calendar', 'id', b.id);
+      if (!cc) return {};
+      if (!canWrite(me, cc.chapter)) throw new Error('That calendar entry belongs to another chapter.');
+      deleteRow('Calendar', 'id', b.id);
+      log(me, 'delete calendar', cc.name);
+      return {};
+    }
+    case 'saveRequest': {
+      var q = b.item || {}, oldQ = q.id ? findRow('Requests', 'id', q.id) : null;
+      if (oldQ && !(me.role === 'lead' || canWrite(me, oldQ.chapter) && oldQ.status === 'waiting')) throw new Error('Only the asking chapter can change a request, and only while it waits for an answer.');
+      if (!canWrite(me, q.chapter) || q.chapter === 'national') throw new Error('You can only ask on behalf of your own chapter.');
+      var affects = (q.affects || []).filter(function (x) { return CHAPTERS.indexOf(x) >= 0 && x !== q.chapter; });
+      if (!affects.length) throw new Error('Pick at least one chapter the request affects.');
+      if (!String(q.text || '').trim()) throw new Error('Say what you are asking.');
+      var rowQ = oldQ || { id: newId('q'), status: 'waiting', reply: '', comments: '[]', createdBy: me.name, createdAt: now };
+      rowQ.chapter = q.chapter; rowQ.affects = affects.join(','); rowQ.text = String(q.text).trim();
+      writeRow('Requests', 'id', rowQ);
+      log(me, oldQ ? 'edit request' : 'add request', rowQ.chapter + ' → ' + rowQ.affects);
+      return { id: rowQ.id };
+    }
+    case 'commentRequest': {
+      var rq = findRow('Requests', 'id', b.id);
+      if (!rq || !involved(me, rq)) throw new Error('That request is not one of yours.');
+      if (!String(b.text || '').trim()) throw new Error('Write a comment first.');
+      var cm = safeJSON(rq.comments, []);
+      cm.push({ by: me.name, text: String(b.text).trim(), at: now });
+      rq.comments = JSON.stringify(cm);
+      writeRow('Requests', 'id', rq);
+      log(me, 'comment request', rq.id);
+      return {};
+    }
+    case 'decideRequest': {
+      if (me.role !== 'lead') throw new Error('Only the NST Lead can decide a chapter request.');
+      var dq = findRow('Requests', 'id', b.id);
+      if (!dq) throw new Error('That request no longer exists.');
+      if (REQUEST_STATUS.indexOf(b.status) < 0) throw new Error('Unknown decision ' + b.status);
+      dq.status = b.status; dq.reply = b.reply || ''; dq.decidedBy = b.status === 'waiting' ? '' : me.name; dq.decidedAt = b.status === 'waiting' ? '' : now;
+      writeRow('Requests', 'id', dq);
+      log(me, 'decide request', dq.id + ' ' + b.status);
+      return {};
+    }
+    case 'deleteRequest': {
+      var xq = findRow('Requests', 'id', b.id);
+      if (!xq) return {};
+      if (!(me.role === 'lead' || canWrite(me, xq.chapter) && xq.status === 'waiting')) throw new Error('Only the asking chapter can withdraw a request, and only while it waits for an answer.');
+      deleteRow('Requests', 'id', b.id);
+      log(me, 'delete request', xq.id);
       return {};
     }
   }
@@ -184,7 +278,22 @@ function load(me) {
   var settings = { regions: regions ? safeJSON(regions.value, {}) : {} };
   if (notice) settings.notice = safeJSON(notice.value, null) || undefined;
   if (danger) settings.danger = safeJSON(danger.value, {});
-  return { me: { role: me.role, name: me.name, chapters: me.chapters }, events: events, sites: sites, notes: notes, positions: pos ? safeJSON(pos.value, {}) : {}, settings: settings };
+  var cal = findRow('Settings', 'key', 'calendar');
+  if (cal) settings.calendar = safeJSON(cal.value, {});
+  var dispatches = readRows('Dispatches').filter(function (r) { return r.id; }).map(function (r) {
+    return { id: String(r.id), chapter: r.chapter, title: r.title, body: r.body || '', when: String(r.when || ''), pinned: truthy(r.pinned), createdBy: r.createdBy || '', createdAt: iso(r.createdAt), updatedAt: iso(r.updatedAt) };
+  });
+  var calendar = readRows('Calendar').filter(function (r) { return r.id && r.date; }).map(function (r) {
+    var c = { id: String(r.id), date: dateStr(r.date), chapter: r.chapter, name: r.name, link: r.link || '' };
+    if (rank >= 1) { c.plan = r.plan || ''; c.evil = r.evil || ''; c.updatedBy = r.updatedBy || ''; }
+    return c;
+  });
+  var requests = rank < 1 ? [] : readRows('Requests').filter(function (r) { return r.id && involved(me, r); }).map(function (r) {
+    return { id: String(r.id), chapter: r.chapter, affects: String(r.affects || '').split(',').filter(function (x) { return x; }), text: r.text || '', status: r.status || 'waiting', reply: r.reply || '',
+      comments: safeJSON(r.comments, []), createdBy: r.createdBy || '', createdAt: iso(r.createdAt), decidedBy: r.decidedBy || '', decidedAt: iso(r.decidedAt) };
+  });
+  return { me: { role: me.role, name: me.name, chapters: me.chapters }, events: events, sites: sites, notes: notes, positions: pos ? safeJSON(pos.value, {}) : {}, settings: settings,
+    dispatches: dispatches, calendar: calendar, requests: requests };
 }
 function viewer() { return { role: 'viewer', name: '', chapters: [] }; }
 function auth(code) {
@@ -195,6 +304,9 @@ function auth(code) {
     var r = rows[i];
     if (String(r.code).trim() !== code || r.active === false || String(r.active).toUpperCase() === 'FALSE') continue;
     var role = String(r.role || 'rep').toLowerCase().trim();
+    if (/^nst[\s_-]*team$/.test(role)) role = 'nst';
+    if (/^nst[\s_-]*lead$/.test(role)) role = 'lead';
+    if (/^nst[\s_-]*rep$/.test(role)) role = 'rep';
     if (!ROLE_RANK.hasOwnProperty(role) || role === 'viewer') role = 'rep';
     var ch = String(r.chapters || '').toLowerCase().trim();
     return { role: role, name: r.name || 'Rep', chapters: ch === 'all' ? CHAPTERS.slice() : ch.split(/[\s,;]+/).filter(function (x) { return x; }) };
@@ -204,11 +316,18 @@ function auth(code) {
 function isNst(me) { return me.role === 'nst' || me.role === 'lead'; }
 function canEditChapter(me, chapter) { return isNst(me) || (me.role === 'rep' && me.chapters.indexOf(chapter) >= 0); }
 function canEditRegion(me, region) { return canEditChapter(me, region); }
+/* Dispatches, calendar entries and requests: story teams and reps for their own chapters, the NST Team for any. */
+function canWrite(me, chapter) { return isNst(me) || ((me.role === 'story' || me.role === 'rep') && me.chapters.indexOf(chapter) >= 0); }
+function involved(me, req) {
+  if (isNst(me)) return true;
+  var all = [req.chapter].concat(Array.isArray(req.affects) ? req.affects : String(req.affects || '').split(','));
+  return all.some(function (c) { return me.chapters.indexOf(c) >= 0; });
+}
 function checkTiers(me, changes) {
   if (isNst(me)) return;
   changes.forEach(function (c) {
-    if ((c.type === 'set' || c.type === 'move') && +c.tier >= 4) throw new Error('Tier 4 and 5 appearances need Brett or Andrew. Ask the NST to record this one.');
-    if (c.type === 'threat' && c.kind === 'lesser' && +c.tier > LESSER_MAX) throw new Error('Lesser Evils stop at tier 3. The NST decides anything beyond that.');
+    if ((c.type === 'set' || c.type === 'move') && +c.tier >= 4) throw new Error('Tier 4 and 5 appearances need Brett or Andrew. Ask the NST Team to record this one.');
+    if (c.type === 'threat' && c.kind === 'lesser' && +c.tier > LESSER_MAX) throw new Error('Lesser Evils stop at tier 3. The NST Team decides anything beyond that.');
   });
 }
 function nextOrder() { var m = -1; readRows('Events').forEach(function (r) { m = Math.max(m, num(r.order)); }); return m + 1; }
@@ -216,7 +335,9 @@ function nextOrder() { var m = -1; readRows('Events').forEach(function (r) { m =
 /* ---------- Sheet helpers ---------- */
 var CHECKED = {};
 function sheet(name) {
-  var sh = SpreadsheetApp.getActive().getSheetByName(name);
+  var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName(name);
+  // Tabs added in later versions of this script are created the first time they're needed.
+  if (!sh && TABS[name] && ss.getSheetByName('Events')) { sh = ss.insertSheet(name); sh.appendRow(TABS[name]); sh.setFrozenRows(1); }
   if (!sh) throw new Error('Run setup() first: the ' + name + ' tab is missing.');
   // Sheets made by an older version of this script get any new columns added on first use.
   if (!CHECKED[name] && TABS[name] && sh.getLastRow() > 0) {
@@ -256,11 +377,16 @@ function eventToRow(ev) {
 }
 function rowToEvent(r) {
   return { id: String(r.id), order: num(r.order), title: r.title, when: String(r.when || ''), chapter: r.chapter || 'national', visibility: r.visibility || 'public', summary: r.summary || '',
-    changes: safeJSON(r.changes, []), example: r.example === true || r.example === 'TRUE', updatedBy: r.updatedBy || '', updatedAt: iso(r.updatedAt) };
+    changes: safeJSON(r.changes, []), example: r.example === true || r.example === 'TRUE', createdAt: iso(r.createdAt), updatedBy: r.updatedBy || '', updatedAt: iso(r.updatedAt) };
 }
 function log(me, action, detail) { try { sheet('Log').appendRow([new Date(), me.name, action, String(detail || '').slice(0, 200)]); } catch (e) {} }
 function safeJSON(s, d) { try { return s ? JSON.parse(s) : d; } catch (e) { return d; } }
 function truthy(v) { return v === true || String(v).toUpperCase() === 'TRUE'; }
 function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
+function newId(prefix) { return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function dateStr(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  return String(v || '').replace(/^'/, '').slice(0, 10);
+}
 function iso(v) { return v instanceof Date ? v.toISOString() : String(v || ''); }
 function json(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }

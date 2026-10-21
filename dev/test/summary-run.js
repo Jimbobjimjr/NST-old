@@ -75,7 +75,7 @@ const check = (ok, what, extra) => { if (!ok) fails++; console.log((ok ? 'ok   '
   await p.click('.dset summary');
   await p.selectOption('#dg-level', '2'); await p.fill('#dg-why', 'Sea raiders sighted off the coast'); await p.click('#dg-save'); await sleep(800);
   check(await ring(p, 'ritterstein') === 'var(--warn)', 'NST override makes Ritterstein Dangerous', await ring(p, 'ritterstein'));
-  check(/set by the NST/.test(await p.locator('.nowbox').textContent()), 'summary says the NST set it');
+  check(/set by the NST Team/.test(await p.locator('.nowbox').textContent()), 'summary says the NST set it');
   await p.screenshot({ path: OUT + 's3-override.png' });
   await p.close();
 

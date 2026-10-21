@@ -31,7 +31,8 @@ function regionTip(id) {
   const marks = Object.values(here.marks);
   const note = S.notes[id]?.public;
   const danger = r.kind === "chapter" ? " " + dangerPill(dangerOf(st, id)) : "";
-  return `<h4>${esc(r.name)}</h4><div class="sub">${esc(r.kind === "chapter" ? "Chapter · " + r.band : r.band)}${status}${danger}</div><div>${esc(note || r.blurb)}</div><div class="pres">${presenceList(st, id)}${marks.map(m => `<div style="display:flex;gap:6px;align-items:center">${pinSwatch(m, 14)}<span>${esc(markName(m))}</span></div>`).join("")}</div>${here.note ? `<div class="muted small" style="margin-top:6px">${esc(here.note)}</div>` : ""}<div class="muted small" style="margin-top:6px">Click for the record. Double-click to zoom into the region.</div>`;
+  const nx = r.kind === "chapter" ? nextEventFor(id) : null;
+  return `<h4>${esc(r.name)}</h4><div class="sub">${esc(r.kind === "chapter" ? "Chapter · " + r.band : r.band)}${status}${danger}</div><div>${esc(note || r.blurb)}</div><div class="pres">${presenceList(st, id)}${marks.map(m => `<div style="display:flex;gap:6px;align-items:center">${pinSwatch(m, 14)}<span>${esc(markName(m))}</span></div>`).join("")}</div>${here.note ? `<div class="muted small" style="margin-top:6px">${esc(here.note)}</div>` : ""}${nx ? `<div class="small" style="margin-top:6px"><b>Next event:</b> ${esc(shortDate(nx.date))}, ${esc(nx.name)}</div>` : ""}<div class="muted small" style="margin-top:6px">Click for the record. Double-click to zoom into the region.</div>`;
 }
 function sinceLine(ev) { return ev ? `<div class="muted small since">Last change: ${esc(ev.title || "Untitled event")}${ev.when ? " · " + esc(ev.when) : ""}</div>` : ""; }
 function tokenTip(evil, id, site) {
@@ -421,18 +422,18 @@ function renderLegend() {
     `<div class="row">${pinSwatch({ icon: "star" }, 15)} Pinpoint</div>` +
     `<div class="row"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><defs><pattern id="lg-siege" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--bad)" fill-opacity=".15"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--bad)" stroke-width="2"/></pattern></defs><rect x="1" y="1" width="14" height="14" rx="2" fill="url(#lg-siege)" stroke="var(--bad)" stroke-width="1.5"/></svg> Besieged</div>` +
     `<div class="row"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" class="blackout"/></svg> Fallen</div>` +
+    `<div class="row"><svg width="30" height="14" viewBox="0 0 30 14" aria-hidden="true"><rect x="0" y="0" width="30" height="14" rx="7" fill="var(--accent)"/></svg> Next event</div>` +
     `<div class="row" style="grid-column:1/-1"><span class="dkey">${DANGER.map(x => `<i style="background:${x.color}"></i>`).join("")}</span> Danger: calm to dire</div>` +
     `<div class="row muted" style="grid-column:1/-1">Numbers are Power Scale tiers. Double-click a region to zoom in.</div>`;
 }
 
 /* ---------- Side panel ---------- */
+const TABS = ["threats", "region", "log", "overview", "dispatches", "calendar", "requests", "recap"];
 function renderSide() {
+  tabBadges();
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)));
-  ["threats", "region", "log", "overview"].forEach(t => $("pane-" + t).hidden = t !== S.tab);
-  if (S.tab === "threats") renderThreats();
-  if (S.tab === "region") renderRegion();
-  if (S.tab === "log") renderLog();
-  if (S.tab === "overview") renderOverview();
+  TABS.forEach(t => $("pane-" + t).hidden = t !== S.tab);
+  ({ threats: renderThreats, region: renderRegion, log: renderLog, overview: renderOverview, dispatches: renderDispatches, calendar: renderCalendar, requests: renderRequests, recap: renderRecap })[S.tab]();
 }
 /* Events up to the step on screen that touch a region, newest first. */
 function eventsTouching(id) {
@@ -507,7 +508,7 @@ function renderRegion() {
     <p style="margin:8px 0 0">${esc(r.blurb)}</p></div>
     <div class="btnrow">${inView ? `<button type="button" class="btn primary" data-closereg="1">← Back to the whole map</button>` : `<button type="button" class="btn primary" data-openreg="${r.id}">Zoom into ${esc(r.name)}</button>`}
     ${inView && regionEdit ? `<button type="button" class="btn big" id="site-edit" aria-pressed="${S.siteEdit}">${S.siteEdit ? "Done editing sites" : "Edit sites"}</button>` : ""}</div>`;
-  if (r.kind === "chapter") html += nowBox(r, st, here);
+  if (r.kind === "chapter") html += nowBox(r, st, here) + aheadBox(r);
   // Pending new site
   if (S.pendingSite && S.pendingSite.region === r.id && regionEdit) {
     html += `<div class="sitebox"><h5>New site</h5><input id="ps-name" placeholder="Name, e.g. Old Mill ford" aria-label="Site name"><input id="ps-note" placeholder="Short description (optional)" aria-label="Site description"><div class="btnrow"><button type="button" class="btn primary" id="ps-save">Add site</button><button type="button" class="btn big" id="ps-cancel">Cancel</button></div></div>`;
@@ -523,10 +524,10 @@ function renderRegion() {
       ${threatRows(th, r.id, editing)}${markRows(mk, r.id, editing)}
       ${editing ? `<div class="btnrow"><button type="button" class="btn" data-addthr="${site.id}">+ Lesser evil or threat here</button><button type="button" class="btn" data-addmark="${site.id}">+ Pinpoint here</button><button type="button" class="btn" data-addclash="${site.id}">+ Clash here</button></div>` : ""}
       ${detailEdit ? `<div class="field"><label class="lbl" for="se-note">Details players see</label><textarea id="se-note" placeholder="What's here: people, landmarks, rumours">${esc(site.note || "")}</textarea></div><div class="field"><label class="lbl" for="se-story">Story team details</label><textarea id="se-story" placeholder="Hooks, secrets and plans for this place">${esc(site.story || "")}</textarea></div><div class="btnrow"><button type="button" class="btn primary" id="se-details">Save details</button></div>` : ""}
-      ${S.siteEdit && regionEdit ? `${canRenameSite(site) ? `<div class="field"><label class="lbl" for="se-name">Name</label><input id="se-name" value="${esc(site.name)}"></div><div class="btnrow"><button type="button" class="btn" id="se-save">Save name</button></div>` : `<div class="note">Only the NST lead can rename the map's own places.</div>`}<div class="btnrow"><button type="button" class="btn danger" id="se-del">${site.custom ? "Delete site" : "Hide site"}</button></div>` : ""}
+      ${S.siteEdit && regionEdit ? `${canRenameSite(site) ? `<div class="field"><label class="lbl" for="se-name">Name</label><input id="se-name" value="${esc(site.name)}"></div><div class="btnrow"><button type="button" class="btn" id="se-save">Save name</button></div>` : `<div class="note">Only the NST Lead can rename the map's own places.</div>`}<div class="btnrow"><button type="button" class="btn danger" id="se-del">${site.custom ? "Delete site" : "Hide site"}</button></div>` : ""}
       <div class="btnrow"><button type="button" class="btn" data-unsite="1">Close site</button></div></div>`;
   }
-  // The "being updated" notice and location names, for the NST and the NST lead
+  // The "being updated" notice and location names, for the NST Team and the NST Lead
   if (inView && isNST()) {
     const nt = S.settings.notice || {};
     html += `<div class="notebox"><h5>Map notice</h5><label class="ck"><input type="checkbox" id="mn-show" ${noticeOn(r.id) || !nt.text ? "checked" : ""}> Show the notice on ${esc(r.name)}'s map</label>
@@ -535,7 +536,7 @@ function renderRegion() {
   }
   if (isLead()) {
     const o = S.settings.regions?.[r.id] || {};
-    html += `<div class="notebox"><h5>Location details · NST lead</h5><label class="lbl" for="ld-name">Name on the map</label><input id="ld-name" value="${esc(r.name)}">
+    html += `<div class="notebox"><h5>Location details · NST Lead</h5><label class="lbl" for="ld-name">Name on the map</label><input id="ld-name" value="${esc(r.name)}">
       <label class="lbl" for="ld-blurb">Description</label><textarea id="ld-blurb">${esc(r.blurb || "")}</textarea>
       <div class="btnrow"><button type="button" class="btn primary" id="ld-save">Save</button>${o.name || o.blurb ? `<button type="button" class="btn" id="ld-reset">Back to the original</button>` : ""}</div>
       <div class="note">Renames this place everywhere on the map. To rename a place on a region's map, zoom in, press Edit sites and click it.</div></div>`;
@@ -544,7 +545,7 @@ function renderRegion() {
   const canStory = VIS_RANK[S.layer] >= 1;
   if (regionEdit) {
     html += `<div class="notebox"><h5>Current situation</h5><label class="lbl" for="n-pub">For players</label><textarea id="n-pub" placeholder="What players know about this region right now">${esc(note.public || "")}</textarea>
-      <label class="lbl" for="n-story">For story teams and the NST</label><textarea id="n-story" placeholder="Hooks, plans and things players haven't found yet">${esc(note.story || "")}</textarea>
+      <label class="lbl" for="n-story">For story teams and the NST Team</label><textarea id="n-story" placeholder="Hooks, plans and things players haven't found yet">${esc(note.story || "")}</textarea>
       <div class="btnrow"><button type="button" class="btn primary" id="n-save">Save notes</button>${note.updatedBy ? `<span class="note">Last updated by ${esc(note.updatedBy)}${note.updatedAt ? ", " + esc(new Date(note.updatedAt).toLocaleDateString()) : ""}</span>` : ""}</div></div>`;
   } else if (note.public || (canStory && note.story)) {
     html += `<div class="notebox"><h5>Current situation</h5>${note.public ? `<p>${esc(note.public)}</p>` : ""}${canStory && note.story ? `<div class="lbl">Story team notes</div><p>${esc(note.story)}</p>` : ""}${note.updatedBy ? `<span class="note">Updated by ${esc(note.updatedBy)}</span>` : ""}</div>`;
@@ -580,7 +581,7 @@ function nowBox(r, st, here) {
   const since = here.status ? lastChange(c => c.type === "status" && c.region === r.id) : null;
   const recent = eventsTouching(r.id).slice(0, 3);
   const o = S.settings.danger?.[r.id];
-  let html = `<div class="nowbox"><h5>Right now</h5>${dangerGauge(d.lv)}<div><b class="dname" style="color:${DANGER[d.lv].color}">${DANGER[d.lv].name}</b>${d.set ? ` <span class="small muted">set by the NST</span>` : ""}</div>
+  let html = `<div class="nowbox"><h5>Right now</h5>${dangerGauge(d.lv)}<div><b class="dname" style="color:${DANGER[d.lv].color}">${DANGER[d.lv].name}</b>${d.set ? ` <span class="small muted">set by the NST Team</span>` : ""}</div>
     <p style="margin:4px 0 0">${esc(d.feel)}</p>
     <div class="small muted" style="margin-top:4px">${d.why.length ? "Why: " + esc(d.why.join(" · ")) : "No threats here."}</div>
     ${here.status ? `<div class="small" style="margin-top:6px"><span class="pill st-${here.status}">${STATUSES[here.status]}</span>${since ? ` since ${esc(since.title || "an untitled event")}${since.when ? " (" + esc(since.when) + ")" : ""}` : ""}</div>` : ""}
@@ -593,6 +594,13 @@ function nowBox(r, st, here) {
       <div class="btnrow"><button type="button" class="btn" id="dg-save">Save danger level</button></div></details>`;
   }
   return html + `</div>`;
+}
+
+/* The chapter's next event and latest dispatch, linking to their tabs. */
+function aheadBox(r) {
+  const nx = nextEventFor(r.id), dp = S.dispatches.filter(x => x.chapter === r.id).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0];
+  if (!nx && !dp) return "";
+  return `<div class="aheadbox">${nx ? `<button type="button" data-tabgo="calendar"><span class="lbl">Next event</span><b>${esc(longDate(nx.date))}</b> ${esc(nx.name)}</button>` : ""}${dp ? `<button type="button" data-tabgo="dispatches" data-dpfrom="${r.id}"><span class="lbl">Latest dispatch</span><b>${esc(dp.title)}</b>${dp.when ? ` <span class="muted">· ${esc(dp.when)}</span>` : ""}</button>` : ""}</div>`;
 }
 
 /* ---------- Draft editing ---------- */
@@ -679,19 +687,19 @@ function draftWarnings(dr) {
       const after = nextS[rid]?.p[c.evil] || 0;
       const nm = `${EVILS[c.evil]?.short} in ${R[rid]?.name}`;
       if (after - before > 1) out.push({ t: `${nm} jumps from tier ${before} to ${after}. The guidebook climbs one tier at a time and gives players an event to respond.` });
-      if (after > before && after === 5) out.push({ hard: true, nst: true, t: `${nm} reaches tier 5: a national event where the figurehead appears. NST only.` });
+      if (after > before && after === 5) out.push({ hard: true, nst: true, t: `${nm} reaches tier 5: a national event where the figurehead appears. NST Team only.` });
       else if (after > before && after === 4) out.push({ hard: true, nst: true, t: `${nm} at tier 4 is a campaign. Brett or Andrew must approve it.` });
-      else if (after > before && after === 3 && R[rid]?.kind === "chapter") out.push({ t: `${nm} at tier 3 is an incursion. The chapter's NST rep signs off, and it is limited to one per evil per chapter per season.` });
+      else if (after > before && after === 3 && R[rid]?.kind === "chapter") out.push({ t: `${nm} at tier 3 is an incursion. The chapter's NST Rep signs off, and it is limited to one per evil per chapter per season.` });
       if (c.type === "move" && !(c.fromSite ? running[c.from]?.at[c.fromSite]?.[c.evil] : running[c.from]?.p[c.evil])) out.push({ t: `${EVILS[c.evil]?.short} has no force in ${R[c.from]?.name}${c.fromSite ? " at " + siteName(c.from, c.fromSite) : ""} to move from at this point.` });
     }
     if (c.type === "clash" && c.a === c.b) out.push({ t: "A clash needs two different evils." });
     if (c.type === "threat" && !c.remove) {
       const wasR = findThreat(running, c.tid), old = wasR ? running[wasR].threats[c.tid] : null, nm = c.name || threatName(c);
-      if (c.kind === "lesser" && +c.tier > 3) out.push({ hard: true, nst: true, t: `Lesser Evils stop at tier 3. Past that the NST decides whether ${nm} becomes something greater.` });
-      else if (+c.tier === 3 && (!old || old.tier < 3)) out.push({ t: `${nm} at tier 3 needs the chapter's NST rep to sign off.` });
+      if (c.kind === "lesser" && +c.tier > 3) out.push({ hard: true, nst: true, t: `Lesser Evils stop at tier 3. Past that the NST Team decides whether ${nm} becomes something greater.` });
+      else if (+c.tier === 3 && (!old || old.tier < 3)) out.push({ t: `${nm} at tier 3 needs the chapter's NST Rep to sign off.` });
       if (old && +c.tier - old.tier > 1) out.push({ t: `${nm} jumps from tier ${old.tier} to ${c.tier}. Lesser Evils grow one step per season at most.` });
       const home = c.kind === "lesser" ? LESSER[c.group]?.home : null;
-      if (home && home !== c.region) out.push({ t: `${LESSER[c.group].name} belongs to ${R[home].name}. Talk to ${R[home].name}'s NST rep before using them.` });
+      if (home && home !== c.region) out.push({ t: `${LESSER[c.group].name} belongs to ${R[home].name}. Talk to ${R[home].name}'s NST Rep before using them.` });
       if (c.kind === "other" && !String(c.name || "").trim()) out.push({ t: "Give this threat a name so players and other chapters can tell it apart." });
     }
     if (c.type === "mark" && !c.remove) {
@@ -703,7 +711,7 @@ function draftWarnings(dr) {
   const evilsAtT2 = new Set(); dr.changes.forEach(c => { const rid = c.region || c.to; const t = running[rid]?.p[c.evil]; if (t === 2 && c.evil) evilsAtT2.add(c.evil); });
   if (evilsAtT2.size > 1) out.push({ t: "More than one External Evil at pocket-problem level in one event. The guidebook allows one per event so players can tell them apart." });
   if (!isNST() && dr.chapter !== "national" && !myChapters().includes(dr.chapter)) out.push({ hard: true, nst: true, t: "You can only record events for your own chapter." });
-  if (!isNST() && dr.chapter === "national") out.push({ hard: true, nst: true, t: "National events are recorded by the NST. Pick your chapter." });
+  if (!isNST() && dr.chapter === "national") out.push({ hard: true, nst: true, t: "National events are recorded by the NST Team. Pick your chapter." });
   return out;
 }
 const opt = (v, l, sel) => `<option value="${esc(v)}" ${String(sel ?? "") === String(v) ? "selected" : ""}>${esc(l)}</option>`;
@@ -770,11 +778,11 @@ function renderLog() {
         ${dr.changes.map(changeEditor).join("") || `<div class="note">No changes yet. Add one below, or open a region on the map and use its steppers.</div>`}
         <div class="btnrow"><button type="button" class="btn" data-addc="set">+ Presence</button><button type="button" class="btn" data-addc="move">+ Advance</button><button type="button" class="btn" data-addc="clash">+ Clash</button><button type="button" class="btn" data-addc="status">+ Condition</button><button type="button" class="btn" data-addc="threat">+ Lesser evil or threat</button><button type="button" class="btn" data-addc="mark">+ Pinpoint</button></div>
         ${warns.length ? `<div class="warns">${warns.map(w => `<div class="${w.hard ? "hard" : ""}">${esc(w.t)}</div>`).join("")}</div>` : ""}
-        ${blocked ? `<div class="note">This needs the NST. Discard it, or ask Brett or Andrew to record it.</div>` : ""}
+        ${blocked ? `<div class="note">This needs the NST Team. Discard it, or ask Brett or Andrew to record it.</div>` : ""}
         <div class="btnrow"><button type="button" class="btn primary" id="d-save" ${dr.title.trim() && !blocked ? "" : "disabled"}>${dr.id ? "Save changes" : "Add to the story"}</button><button type="button" class="btn big" id="d-cancel">Discard</button></div></div>`;
     }
   } else {
-    html += `<div class="note">${Store.mode === "sheets" ? "Chapter NST reps can sign in with their rep code to record events." : Store.mode === "claude" ? "You can view the story. Ask the map's owner for edit access to record events." : "This copy isn't connected to the shared story sheet yet."}</div>`;
+    html += `<div class="note">${Store.mode === "sheets" ? "Chapter NST Reps can sign in with their rep code to record events." : Store.mode === "claude" ? "You can view the story. Ask the map's owner for edit access to record events." : "This copy isn't connected to the shared story sheet yet."}</div>`;
   }
   html += `<div class="lbl">The story so far · ${EV.length} step${EV.length === 1 ? "" : "s"} visible to ${VIS[S.layer]}</div>`;
   html += EV.map((e, i) => {
@@ -790,7 +798,7 @@ function renderLog() {
   if (isNST() && S.usingFallback && S.loaded) html += `<div class="btnrow"><button type="button" class="btn big" id="seed-open">Save the opening positions as step 1</button></div>`;
   html += `<details class="setup" ${S.layoutMode ? "open" : ""}><summary>Map setup</summary>
     ${isNST() ? `<div class="btnrow"><button type="button" class="btn big" id="lay-toggle" aria-pressed="${S.layoutMode}">${S.layoutMode ? "Done arranging" : "Arrange places on the map"}</button><button type="button" class="btn" id="lay-reset">Reset positions</button></div>
-    <div class="note">Drag towns, fronts and waters to move them. Territories redraw around them and the change is shared.</div>` : `<div class="note">Arranging the main map is for the NST. Reps can add and move sites inside their own region's map.</div>`}
+    <div class="note">Drag towns, fronts and waters to move them. Territories redraw around them and the change is shared.</div>` : `<div class="note">Arranging the main map is for the NST Team. Reps can add and move sites inside their own region's map.</div>`}
     <div class="btnrow"><button type="button" class="btn" id="exp">Export the story as JSON</button></div></details>`;
   pane.innerHTML = html;
 }
@@ -799,7 +807,7 @@ function renderLog() {
 const clean = o => JSON.parse(JSON.stringify(o));
 async function saveDraft() {
   const dr = S.draft; if (!dr || !dr.title.trim() || !canDraft()) return;
-  if (!isNST() && draftWarnings(dr).some(w => w.nst)) { toast("This change needs the NST"); return; }
+  if (!isNST() && draftWarnings(dr).some(w => w.nst)) { toast("This change needs the NST Team"); return; }
   const body = clean({ title: dr.title.trim(), when: dr.when.trim(), chapter: dr.chapter || "national", visibility: dr.visibility || "story", summary: dr.summary.trim(),
     changes: dr.changes.map(c => { const o = { ...c }; if (o.tier !== undefined) o.tier = +o.tier; for (const k of ["site", "fromSite", "toSite"]) if (o[k] === "") delete o[k]; for (const k of ["x", "y"]) if (o[k] == null) delete o[k]; return o; }),
     updatedBy: Store.me.name || "", updatedAt: new Date().toISOString() });
@@ -868,14 +876,14 @@ function openPop(kind) {
     const u = new URL(location.href); u.search = ""; u.hash = "";
     u.searchParams.set("embed", "1"); if (RV.id) u.searchParams.set("region", RV.id);
     const code = `<iframe src="${u.toString()}" title="Abandoned Lands Story Map" width="100%" height="860" style="border:0;max-width:1500px" loading="lazy" allow="fullscreen" allowfullscreen></iframe>`;
-    pop.innerHTML = `<b>Embed ${RV.id ? "this region" : "the story map"} in a wiki page</b><textarea id="emb-code" readonly>${esc(code)}</textarea><div class="btnrow"><button type="button" class="btn primary" id="emb-copy">Copy code</button><button type="button" class="btn big" id="pop-close">Close</button></div><div class="note">${location.protocol === "file:" ? "This copy is opened from a file. Host the site first, then copy the code from the hosted page." : "Paste it into any wiki or site that accepts iframes. Add &amp;region= with a town's id to open straight onto its map."}</div>`;
+    pop.innerHTML = `<b>Embed ${RV.id ? "this region" : "the story map"} in a wiki page</b><textarea id="emb-code" readonly>${esc(code)}</textarea><div class="btnrow"><button type="button" class="btn primary" id="emb-copy">Copy code</button><button type="button" class="btn big" id="pop-close">Close</button></div><div class="note">${location.protocol === "file:" ? "This copy is opened from a file. Host the site first, then copy the code from the hosted page." : "Paste it into any wiki or site that accepts iframes. Add &amp;region= with a town's id to open straight onto its map, or &amp;tab=dispatches to open on the Dispatches."}</div>`;
   } else if (kind === "who") {
     const m = Store.me;
     if (Store.mode === "local") {
       pop.innerHTML = m.role === "viewer" ? `<b>Try the editor</b><div class="note">This copy isn't connected to the shared story sheet, so anything you record stays in this browser only. It's for trying things out.</div><div class="btnrow"><button type="button" class="btn primary" id="demo-on">Start demo editing</button><button type="button" class="btn big" id="pop-close">Close</button></div>`
         : `<b>Demo editing is on</b><div class="note">Changes are saved in this browser only.</div><div class="btnrow"><button type="button" class="btn" id="demo-off">Stop demo</button><button type="button" class="btn danger" id="demo-reset">Clear demo data</button></div>`;
     } else if (m.role === "viewer") {
-      pop.innerHTML = `<label class="lbl" for="code-in">Rep code</label><input id="code-in" type="password" autocomplete="current-password" placeholder="The code the NST gave you"><div class="btnrow"><button type="button" class="btn primary" id="code-go">Sign in</button><button type="button" class="btn big" id="pop-close">Cancel</button></div><div class="note">Chapter NST reps can record events, place threats and write notes for their own chapter. Codes are kept in the story sheet's Reps tab.</div>`;
+      pop.innerHTML = `<label class="lbl" for="code-in">Rep code</label><input id="code-in" type="password" autocomplete="current-password" placeholder="The code the NST Team gave you"><div class="btnrow"><button type="button" class="btn primary" id="code-go">Sign in</button><button type="button" class="btn big" id="pop-close">Cancel</button></div><div class="note">Chapter NST Reps can record events, place threats and write notes for their own chapter. Codes are kept in the story sheet's Reps tab.</div>`;
       setTimeout(() => $("code-in")?.focus(), 0);
     } else {
       pop.innerHTML = `<div class="who">Signed in as <b>${esc(m.name || "a rep")}</b>, ${esc(ROLES[m.role].name)} for ${esc(chapterNames(m))}.</div><div class="btnrow"><button type="button" class="btn" id="sign-out">Sign out</button><button type="button" class="btn big" id="pop-close">Close</button></div>`;
@@ -908,6 +916,7 @@ document.addEventListener("click", async e => {
   if (d.eye) { S.hidden.has(d.eye) ? S.hidden.delete(d.eye) : S.hidden.add(d.eye); try { localStorage.setItem("alwm.hidden", JSON.stringify([...S.hidden])); } catch (x) {} redraw({ fresh: false }); renderSide(); return; }
   if (d.focus) { S.focus = S.focus === d.focus ? null : d.focus; redraw({ fresh: false }); renderSide(); return; }
   if (d.goreg) { selectRegion(d.goreg); return; }
+  if (d.tabgo) { S.tab = d.tabgo; if (d.dpfrom) S.dispFilter = d.dpfrom; renderSide(); return; }
   if (d.openreg) { openRegion(d.openreg); return; }
   if (d.closereg) { closeRegion(); return; }
   if (d.unsite) { S.site = null; renderRegionView({ fresh: false }); renderSide(); return; }
@@ -1048,7 +1057,7 @@ function play() {
 function stop() { S.playing = false; clearTimeout(playTimer); $("tl-play").textContent = "▶"; $("tl-play").setAttribute("aria-label", "Play the story"); }
 
 async function exportJSON() {
-  const data = JSON.stringify({ exportedAt: new Date().toISOString(), events: S.usingFallback ? [OPENING] : S.events, sites: Object.values(S.sites), notes: S.notes, positions: S.positions, settings: S.settings }, null, 2);
+  const data = JSON.stringify({ exportedAt: new Date().toISOString(), events: S.usingFallback ? [OPENING] : S.events, sites: Object.values(S.sites), notes: S.notes, positions: S.positions, settings: S.settings, dispatches: S.dispatches, calendar: S.calendar, requests: S.requests }, null, 2);
   if (S.downloads) { try { await S.downloads.save({ filename: "abandoned-lands-story.json", data }); return; } catch (e) { if (e?.code === "declined") return; } }
   try {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], { type: "application/json" })); a.download = "abandoned-lands-story.json"; document.body.appendChild(a); a.click(); a.remove();
@@ -1061,7 +1070,7 @@ function refreshAll(fresh) {
   renderMap({ fresh: !!fresh }); renderChrome();
 }
 function setSettings(o) {
-  S.settings = { notice: o.notice || { text: NOTICE_TEXT, done: [] }, regions: o.regions || {}, danger: o.danger || {} };
+  S.settings = { notice: o.notice || { text: NOTICE_TEXT, done: [] }, regions: o.regions || {}, danger: o.danger || {}, calendar: o.calendar || {} };
   applyRegionInfo();
 }
 function applyData(d, first) {
@@ -1071,6 +1080,7 @@ function applyData(d, first) {
   if (d.notes) S.notes = d.notes;
   if (d.positions) S.positions = d.positions;
   if (d.settings) setSettings(d.settings);
+  applyLists(d);
   S.loaded = true;
   S.usingFallback = S.events.length === 0;
   if (first || atEnd) S.idx = 9999;
@@ -1092,11 +1102,13 @@ async function startClaude() {
   Store.saveNote = (region, n) => db.collection("notes").doc(region).set(n);
   Store.savePositions = p => db.doc("settings/layout").set({ positions: p });
   Store.saveSetting = (key, value) => db.doc("settings/" + key).set({ value });
+  Store.act = async (a, p) => { const r = reduceAct(S, Store.me, a, p); if (r.doc) await db.collection(r.coll).doc(r.id).set(r.doc); else await db.collection(r.coll).doc(r.id).delete(); return { id: r.id }; };
+  ["dispatches", "calendar", "requests"].forEach(k => db.collection(k).onSnapshot(snap => { applyLists({ [k]: snap.docs.map(x => ({ id: x.id, ...x.data() })) }); renderMap({ fresh: false }); renderChrome(); }, () => {}));
   let first = true;
   db.collection("events").onSnapshot(snap => { applyData({ events: snap.docs.map(x => ({ id: x.id, ...x.data() })) }, first); first = false; }, err => toast("The story log couldn't load: " + (err?.message || "")));
   db.collection("sites").onSnapshot(snap => { S.sites = Object.fromEntries(snap.docs.map(x => [x.id, { id: x.id, ...x.data() }])); renderRegionView({ fresh: false }); if (S.tab === "region") renderSide(); }, () => {});
   db.collection("notes").onSnapshot(snap => { S.notes = Object.fromEntries(snap.docs.map(x => [x.id, x.data()])); if (S.tab === "region") renderSide(); }, () => {});
-  ["notice", "regions"].forEach(key => db.doc("settings/" + key).onSnapshot(snap => { if (snap.exists) { setSettings({ ...S.settings, [key]: snap.data()?.value }); renderMap({ fresh: false }); renderChrome(); } }, () => {}));
+  ["notice", "regions", "danger", "calendar"].forEach(key => db.doc("settings/" + key).onSnapshot(snap => { if (snap.exists) { setSettings({ ...S.settings, [key]: snap.data()?.value }); renderMap({ fresh: false }); renderChrome(); } }, () => {}));
   db.doc("settings/layout").onSnapshot(snap => { if (drag && drag.mode === "city") return; S.positions = (snap.exists && snap.data()?.positions) || {}; renderMap({ fresh: false }); }, () => {});
   return true;
 }
@@ -1130,13 +1142,14 @@ function startSheets() {
   Store.saveNote = (region, note) => post("saveNote", { region, note });
   Store.savePositions = positions => post("savePositions", { positions });
   Store.saveSetting = (key, value) => post("saveSetting", { key, value });
+  Store.act = (action, payload) => post(action, payload);
   load().catch(e => { S.loaded = true; toast("Couldn't reach the story sheet: " + e.message); refreshAll(false); });
-  setInterval(() => { if (!document.hidden && !S.draft && !S.placing && !rdrag && !drag) load().catch(() => {}); }, Math.max(15, CONFIG.pollSeconds) * 1000);
+  setInterval(() => { if (!document.hidden && !S.draft && !S.placing && !S.dispForm && !S.calForm && !S.reqForm && !rdrag && !drag) load().catch(() => {}); }, Math.max(15, CONFIG.pollSeconds) * 1000);
 }
 function startLocal() {
   Store.mode = "local";
   const KEY = "alwm.local";
-  const fresh = () => ({ events: [{ ...OPENING, example: false }], sites: [], notes: {}, positions: {} });
+  const fresh = () => ({ events: [{ ...OPENING, example: false }], sites: [], notes: {}, positions: {}, dispatches: [], calendar: [], requests: [] });
   let data = null; try { data = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
   if (!data) data = fresh();
   let demo = false; try { demo = localStorage.getItem("alwm.demo") === "1"; } catch (e) {}
@@ -1154,13 +1167,16 @@ function startLocal() {
   Store.saveNote = async (region, n) => { data.notes[region] = n; save(); };
   Store.savePositions = async p => { data.positions = p; save(); };
   Store.saveSetting = async (key, value) => { (data.settings ||= {})[key] = value; save(); };
+  Store.act = async (a, p) => { const r = reduceAct(data, Store.me, a, p), list = (data[r.coll] ||= []).filter(x => x.id !== r.id); if (r.doc) list.push(r.doc); data[r.coll] = list; save(); return { id: r.id }; };
   applyData(clean(data), true);
 }
 
 /* ---------- Boot ---------- */
 if (EMBED) document.body.classList.add("embed");
 buildMapSkeleton(); renderLegend();
-S.idx = 9999; refreshAll(true);
+S.idx = 9999;
+if (["dispatches", "calendar", "overview", "log"].includes(PARAMS.get("tab"))) S.tab = PARAMS.get("tab");
+refreshAll(true);
 $("layers").open = false;
 (async () => {
   let ok = false;

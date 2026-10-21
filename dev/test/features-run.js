@@ -115,7 +115,7 @@ const check = (ok, what, extra) => { if (!ok) fails++; console.log((ok ? 'ok   '
   await p.fill('#d-title', 'Raiders dig in'); await p.click('#d-save'); await sleep(800);
   check(await p.locator('#rmap .mk').count() === 2, 'second pinpoint at a site');
   const ren = gas.post(JSON.stringify({ action: 'saveSite', code: 'bracken-123', site: { id: site, region: 'bracken', name: 'Fort Ashridge' } }));
-  check(!ren.ok && /lead/.test(ren.error), 'reps cannot rename the map\'s own places', ren.error);
+  check(!ren.ok && /Lead/.test(ren.error), 'reps cannot rename the map\'s own places', ren.error);
   const own = gas.post(JSON.stringify({ action: 'saveSite', code: 'bracken-123', site: { id: 'bracken-c-hut-abcd', region: 'bracken', name: 'Old hut', x: .5, y: .5 } }));
   const own2 = gas.post(JSON.stringify({ action: 'saveSite', code: 'bracken-123', site: { id: 'bracken-c-hut-abcd', region: 'bracken', name: 'Older hut' } }));
   check(own.ok && own2.ok, 'reps can still name places they add');

@@ -2,7 +2,7 @@
 import os
 root = os.path.dirname(os.path.abspath(__file__))
 src = lambda n: open(os.path.join(root, 'src', n), encoding='utf-8').read()
-js = src('app1.js') + src('app2.js')
+js = src('app1.js') + src('app3.js') + src('app2.js')
 js = js.replace('/*__MASKS__*/', src('masks.js').rstrip('\n'))
 head = '''<!doctype html>
 <html lang="en">
