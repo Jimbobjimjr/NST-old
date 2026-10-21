@@ -27,6 +27,7 @@
       <label><input type="checkbox" id="ly-threats" checked> Lesser evils and other threats</label>
       <label><input type="checkbox" id="ly-marks" checked> Pinpoints</label>
       <label><input type="checkbox" id="ly-danger" checked> Danger level on towns</label>
+      <label><input type="checkbox" id="ly-cal" checked> Next event dates</label>
       <label><input type="checkbox" id="ly-names"> Extra name labels</label>
       <label><input type="checkbox" id="ly-tint" checked> Threat shading on regions</label>
       <label><input type="checkbox" id="ly-borders" checked> Region borders</label>
@@ -85,11 +86,19 @@
       <button type="button" role="tab" id="tab-region" aria-selected="false" data-tab="region">Region</button>
       <button type="button" role="tab" id="tab-log" aria-selected="false" data-tab="log">Story log</button>
       <button type="button" role="tab" id="tab-overview" aria-selected="false" data-tab="overview">Right now</button>
+      <button type="button" role="tab" id="tab-dispatches" aria-selected="false" data-tab="dispatches">Dispatches</button>
+      <button type="button" role="tab" id="tab-calendar" aria-selected="false" data-tab="calendar">Calendar</button>
+      <button type="button" role="tab" id="tab-requests" aria-selected="false" data-tab="requests" hidden>Requests</button>
+      <button type="button" role="tab" id="tab-recap" aria-selected="false" data-tab="recap" hidden>Yearly recap</button>
     </div>
     <div class="pane" id="pane-threats" role="tabpanel" aria-labelledby="tab-threats"></div>
     <div class="pane" id="pane-region" role="tabpanel" aria-labelledby="tab-region" hidden></div>
     <div class="pane" id="pane-log" role="tabpanel" aria-labelledby="tab-log" hidden></div>
     <div class="pane" id="pane-overview" role="tabpanel" aria-labelledby="tab-overview" hidden></div>
+    <div class="pane" id="pane-dispatches" role="tabpanel" aria-labelledby="tab-dispatches" hidden></div>
+    <div class="pane" id="pane-calendar" role="tabpanel" aria-labelledby="tab-calendar" hidden></div>
+    <div class="pane" id="pane-requests" role="tabpanel" aria-labelledby="tab-requests" hidden></div>
+    <div class="pane" id="pane-recap" role="tabpanel" aria-labelledby="tab-recap" hidden></div>
   </aside>
 </div>
 <div class="toast" id="toast" hidden></div>

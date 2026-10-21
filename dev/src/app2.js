@@ -31,7 +31,8 @@ function regionTip(id) {
   const marks = Object.values(here.marks);
   const note = S.notes[id]?.public;
   const danger = r.kind === "chapter" ? " " + dangerPill(dangerOf(st, id)) : "";
-  return `<h4>${esc(r.name)}</h4><div class="sub">${esc(r.kind === "chapter" ? "Chapter · " + r.band : r.band)}${status}${danger}</div><div>${esc(note || r.blurb)}</div><div class="pres">${presenceList(st, id)}${marks.map(m => `<div style="display:flex;gap:6px;align-items:center">${pinSwatch(m, 14)}<span>${esc(markName(m))}</span></div>`).join("")}</div>${here.note ? `<div class="muted small" style="margin-top:6px">${esc(here.note)}</div>` : ""}<div class="muted small" style="margin-top:6px">Click for the record. Double-click to zoom into the region.</div>`;
+  const nx = r.kind === "chapter" ? nextEventFor(id) : null;
+  return `<h4>${esc(r.name)}</h4><div class="sub">${esc(r.kind === "chapter" ? "Chapter · " + r.band : r.band)}${status}${danger}</div><div>${esc(note || r.blurb)}</div><div class="pres">${presenceList(st, id)}${marks.map(m => `<div style="display:flex;gap:6px;align-items:center">${pinSwatch(m, 14)}<span>${esc(markName(m))}</span></div>`).join("")}</div>${here.note ? `<div class="muted small" style="margin-top:6px">${esc(here.note)}</div>` : ""}${nx ? `<div class="small" style="margin-top:6px"><b>Next event:</b> ${esc(shortDate(nx.date))}, ${esc(nx.name)}</div>` : ""}<div class="muted small" style="margin-top:6px">Click for the record. Double-click to zoom into the region.</div>`;
 }
 function sinceLine(ev) { return ev ? `<div class="muted small since">Last change: ${esc(ev.title || "Untitled event")}${ev.when ? " · " + esc(ev.when) : ""}</div>` : ""; }
 function tokenTip(evil, id, site) {
@@ -421,18 +422,18 @@ function renderLegend() {
     `<div class="row">${pinSwatch({ icon: "star" }, 15)} Pinpoint</div>` +
     `<div class="row"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><defs><pattern id="lg-siege" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--bad)" fill-opacity=".15"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--bad)" stroke-width="2"/></pattern></defs><rect x="1" y="1" width="14" height="14" rx="2" fill="url(#lg-siege)" stroke="var(--bad)" stroke-width="1.5"/></svg> Besieged</div>` +
     `<div class="row"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" class="blackout"/></svg> Fallen</div>` +
+    `<div class="row"><svg width="30" height="14" viewBox="0 0 30 14" aria-hidden="true"><rect x="0" y="0" width="30" height="14" rx="7" fill="var(--accent)"/></svg> Next event</div>` +
     `<div class="row" style="grid-column:1/-1"><span class="dkey">${DANGER.map(x => `<i style="background:${x.color}"></i>`).join("")}</span> Danger: calm to dire</div>` +
     `<div class="row muted" style="grid-column:1/-1">Numbers are Power Scale tiers. Double-click a region to zoom in.</div>`;
 }
 
 /* ---------- Side panel ---------- */
+const TABS = ["threats", "region", "log", "overview", "dispatches", "calendar", "requests", "recap"];
 function renderSide() {
+  tabBadges();
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)));
-  ["threats", "region", "log", "overview"].forEach(t => $("pane-" + t).hidden = t !== S.tab);
-  if (S.tab === "threats") renderThreats();
-  if (S.tab === "region") renderRegion();
-  if (S.tab === "log") renderLog();
-  if (S.tab === "overview") renderOverview();
+  TABS.forEach(t => $("pane-" + t).hidden = t !== S.tab);
+  ({ threats: renderThreats, region: renderRegion, log: renderLog, overview: renderOverview, dispatches: renderDispatches, calendar: renderCalendar, requests: renderRequests, recap: renderRecap })[S.tab]();
 }
 /* Events up to the step on screen that touch a region, newest first. */
 function eventsTouching(id) {
@@ -507,7 +508,7 @@ function renderRegion() {
     <p style="margin:8px 0 0">${esc(r.blurb)}</p></div>
     <div class="btnrow">${inView ? `<button type="button" class="btn primary" data-closereg="1">← Back to the whole map</button>` : `<button type="button" class="btn primary" data-openreg="${r.id}">Zoom into ${esc(r.name)}</button>`}
     ${inView && regionEdit ? `<button type="button" class="btn big" id="site-edit" aria-pressed="${S.siteEdit}">${S.siteEdit ? "Done editing sites" : "Edit sites"}</button>` : ""}</div>`;
-  if (r.kind === "chapter") html += nowBox(r, st, here);
+  if (r.kind === "chapter") html += nowBox(r, st, here) + aheadBox(r);
   // Pending new site
   if (S.pendingSite && S.pendingSite.region === r.id && regionEdit) {
     html += `<div class="sitebox"><h5>New site</h5><input id="ps-name" placeholder="Name, e.g. Old Mill ford" aria-label="Site name"><input id="ps-note" placeholder="Short description (optional)" aria-label="Site description"><div class="btnrow"><button type="button" class="btn primary" id="ps-save">Add site</button><button type="button" class="btn big" id="ps-cancel">Cancel</button></div></div>`;
@@ -593,6 +594,13 @@ function nowBox(r, st, here) {
       <div class="btnrow"><button type="button" class="btn" id="dg-save">Save danger level</button></div></details>`;
   }
   return html + `</div>`;
+}
+
+/* The chapter's next event and latest dispatch, linking to their tabs. */
+function aheadBox(r) {
+  const nx = nextEventFor(r.id), dp = S.dispatches.filter(x => x.chapter === r.id).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0];
+  if (!nx && !dp) return "";
+  return `<div class="aheadbox">${nx ? `<button type="button" data-tabgo="calendar"><span class="lbl">Next event</span><b>${esc(longDate(nx.date))}</b> ${esc(nx.name)}</button>` : ""}${dp ? `<button type="button" data-tabgo="dispatches" data-dpfrom="${r.id}"><span class="lbl">Latest dispatch</span><b>${esc(dp.title)}</b>${dp.when ? ` <span class="muted">· ${esc(dp.when)}</span>` : ""}</button>` : ""}</div>`;
 }
 
 /* ---------- Draft editing ---------- */
@@ -868,7 +876,7 @@ function openPop(kind) {
     const u = new URL(location.href); u.search = ""; u.hash = "";
     u.searchParams.set("embed", "1"); if (RV.id) u.searchParams.set("region", RV.id);
     const code = `<iframe src="${u.toString()}" title="Abandoned Lands Story Map" width="100%" height="860" style="border:0;max-width:1500px" loading="lazy" allow="fullscreen" allowfullscreen></iframe>`;
-    pop.innerHTML = `<b>Embed ${RV.id ? "this region" : "the story map"} in a wiki page</b><textarea id="emb-code" readonly>${esc(code)}</textarea><div class="btnrow"><button type="button" class="btn primary" id="emb-copy">Copy code</button><button type="button" class="btn big" id="pop-close">Close</button></div><div class="note">${location.protocol === "file:" ? "This copy is opened from a file. Host the site first, then copy the code from the hosted page." : "Paste it into any wiki or site that accepts iframes. Add &amp;region= with a town's id to open straight onto its map."}</div>`;
+    pop.innerHTML = `<b>Embed ${RV.id ? "this region" : "the story map"} in a wiki page</b><textarea id="emb-code" readonly>${esc(code)}</textarea><div class="btnrow"><button type="button" class="btn primary" id="emb-copy">Copy code</button><button type="button" class="btn big" id="pop-close">Close</button></div><div class="note">${location.protocol === "file:" ? "This copy is opened from a file. Host the site first, then copy the code from the hosted page." : "Paste it into any wiki or site that accepts iframes. Add &amp;region= with a town's id to open straight onto its map, or &amp;tab=dispatches to open on the Dispatches."}</div>`;
   } else if (kind === "who") {
     const m = Store.me;
     if (Store.mode === "local") {
@@ -908,6 +916,7 @@ document.addEventListener("click", async e => {
   if (d.eye) { S.hidden.has(d.eye) ? S.hidden.delete(d.eye) : S.hidden.add(d.eye); try { localStorage.setItem("alwm.hidden", JSON.stringify([...S.hidden])); } catch (x) {} redraw({ fresh: false }); renderSide(); return; }
   if (d.focus) { S.focus = S.focus === d.focus ? null : d.focus; redraw({ fresh: false }); renderSide(); return; }
   if (d.goreg) { selectRegion(d.goreg); return; }
+  if (d.tabgo) { S.tab = d.tabgo; if (d.dpfrom) S.dispFilter = d.dpfrom; renderSide(); return; }
   if (d.openreg) { openRegion(d.openreg); return; }
   if (d.closereg) { closeRegion(); return; }
   if (d.unsite) { S.site = null; renderRegionView({ fresh: false }); renderSide(); return; }
@@ -1048,7 +1057,7 @@ function play() {
 function stop() { S.playing = false; clearTimeout(playTimer); $("tl-play").textContent = "▶"; $("tl-play").setAttribute("aria-label", "Play the story"); }
 
 async function exportJSON() {
-  const data = JSON.stringify({ exportedAt: new Date().toISOString(), events: S.usingFallback ? [OPENING] : S.events, sites: Object.values(S.sites), notes: S.notes, positions: S.positions, settings: S.settings }, null, 2);
+  const data = JSON.stringify({ exportedAt: new Date().toISOString(), events: S.usingFallback ? [OPENING] : S.events, sites: Object.values(S.sites), notes: S.notes, positions: S.positions, settings: S.settings, dispatches: S.dispatches, calendar: S.calendar, requests: S.requests }, null, 2);
   if (S.downloads) { try { await S.downloads.save({ filename: "abandoned-lands-story.json", data }); return; } catch (e) { if (e?.code === "declined") return; } }
   try {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], { type: "application/json" })); a.download = "abandoned-lands-story.json"; document.body.appendChild(a); a.click(); a.remove();
@@ -1061,7 +1070,7 @@ function refreshAll(fresh) {
   renderMap({ fresh: !!fresh }); renderChrome();
 }
 function setSettings(o) {
-  S.settings = { notice: o.notice || { text: NOTICE_TEXT, done: [] }, regions: o.regions || {}, danger: o.danger || {} };
+  S.settings = { notice: o.notice || { text: NOTICE_TEXT, done: [] }, regions: o.regions || {}, danger: o.danger || {}, calendar: o.calendar || {} };
   applyRegionInfo();
 }
 function applyData(d, first) {
@@ -1071,6 +1080,7 @@ function applyData(d, first) {
   if (d.notes) S.notes = d.notes;
   if (d.positions) S.positions = d.positions;
   if (d.settings) setSettings(d.settings);
+  applyLists(d);
   S.loaded = true;
   S.usingFallback = S.events.length === 0;
   if (first || atEnd) S.idx = 9999;
@@ -1092,11 +1102,13 @@ async function startClaude() {
   Store.saveNote = (region, n) => db.collection("notes").doc(region).set(n);
   Store.savePositions = p => db.doc("settings/layout").set({ positions: p });
   Store.saveSetting = (key, value) => db.doc("settings/" + key).set({ value });
+  Store.act = async (a, p) => { const r = reduceAct(S, Store.me, a, p); if (r.doc) await db.collection(r.coll).doc(r.id).set(r.doc); else await db.collection(r.coll).doc(r.id).delete(); return { id: r.id }; };
+  ["dispatches", "calendar", "requests"].forEach(k => db.collection(k).onSnapshot(snap => { applyLists({ [k]: snap.docs.map(x => ({ id: x.id, ...x.data() })) }); renderMap({ fresh: false }); renderChrome(); }, () => {}));
   let first = true;
   db.collection("events").onSnapshot(snap => { applyData({ events: snap.docs.map(x => ({ id: x.id, ...x.data() })) }, first); first = false; }, err => toast("The story log couldn't load: " + (err?.message || "")));
   db.collection("sites").onSnapshot(snap => { S.sites = Object.fromEntries(snap.docs.map(x => [x.id, { id: x.id, ...x.data() }])); renderRegionView({ fresh: false }); if (S.tab === "region") renderSide(); }, () => {});
   db.collection("notes").onSnapshot(snap => { S.notes = Object.fromEntries(snap.docs.map(x => [x.id, x.data()])); if (S.tab === "region") renderSide(); }, () => {});
-  ["notice", "regions"].forEach(key => db.doc("settings/" + key).onSnapshot(snap => { if (snap.exists) { setSettings({ ...S.settings, [key]: snap.data()?.value }); renderMap({ fresh: false }); renderChrome(); } }, () => {}));
+  ["notice", "regions", "danger", "calendar"].forEach(key => db.doc("settings/" + key).onSnapshot(snap => { if (snap.exists) { setSettings({ ...S.settings, [key]: snap.data()?.value }); renderMap({ fresh: false }); renderChrome(); } }, () => {}));
   db.doc("settings/layout").onSnapshot(snap => { if (drag && drag.mode === "city") return; S.positions = (snap.exists && snap.data()?.positions) || {}; renderMap({ fresh: false }); }, () => {});
   return true;
 }
@@ -1130,13 +1142,14 @@ function startSheets() {
   Store.saveNote = (region, note) => post("saveNote", { region, note });
   Store.savePositions = positions => post("savePositions", { positions });
   Store.saveSetting = (key, value) => post("saveSetting", { key, value });
+  Store.act = (action, payload) => post(action, payload);
   load().catch(e => { S.loaded = true; toast("Couldn't reach the story sheet: " + e.message); refreshAll(false); });
-  setInterval(() => { if (!document.hidden && !S.draft && !S.placing && !rdrag && !drag) load().catch(() => {}); }, Math.max(15, CONFIG.pollSeconds) * 1000);
+  setInterval(() => { if (!document.hidden && !S.draft && !S.placing && !S.dispForm && !S.calForm && !S.reqForm && !rdrag && !drag) load().catch(() => {}); }, Math.max(15, CONFIG.pollSeconds) * 1000);
 }
 function startLocal() {
   Store.mode = "local";
   const KEY = "alwm.local";
-  const fresh = () => ({ events: [{ ...OPENING, example: false }], sites: [], notes: {}, positions: {} });
+  const fresh = () => ({ events: [{ ...OPENING, example: false }], sites: [], notes: {}, positions: {}, dispatches: [], calendar: [], requests: [] });
   let data = null; try { data = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
   if (!data) data = fresh();
   let demo = false; try { demo = localStorage.getItem("alwm.demo") === "1"; } catch (e) {}
@@ -1154,13 +1167,16 @@ function startLocal() {
   Store.saveNote = async (region, n) => { data.notes[region] = n; save(); };
   Store.savePositions = async p => { data.positions = p; save(); };
   Store.saveSetting = async (key, value) => { (data.settings ||= {})[key] = value; save(); };
+  Store.act = async (a, p) => { const r = reduceAct(data, Store.me, a, p), list = (data[r.coll] ||= []).filter(x => x.id !== r.id); if (r.doc) list.push(r.doc); data[r.coll] = list; save(); return { id: r.id }; };
   applyData(clean(data), true);
 }
 
 /* ---------- Boot ---------- */
 if (EMBED) document.body.classList.add("embed");
 buildMapSkeleton(); renderLegend();
-S.idx = 9999; refreshAll(true);
+S.idx = 9999;
+if (["dispatches", "calendar", "overview", "log"].includes(PARAMS.get("tab"))) S.tab = PARAMS.get("tab");
+refreshAll(true);
 $("layers").open = false;
 (async () => {
   let ok = false;

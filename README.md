@@ -35,10 +35,10 @@ One row per person in the **Reps** tab:
 |---|---|---|---|---|
 | a code you give them | how they show up in the log | `story`, `rep`, `nst` or `lead` | chapter ids, comma separated, or `all` | TRUE |
 
-- `story` can sign in to see story-team events and notes, and add details to places on their chapters' region maps. They can't change the story.
+- `story` can sign in to see story-team events and notes, add details to places on their chapters' region maps, and write their chapters' dispatches, calendar events and requests. They can't change the story.
 - `rep` can record events for their chapters, place threats, pinpoints and sites in their region, and write their region's notes. They see everything, including NST-only events.
 - `nst` can do everything a rep can in every chapter, plus tier 4 and 5 appearances, Lesser Evils past tier 3, national events, reordering the story, arranging the main map and the "being updated" notice on region maps, and setting a region's danger level by hand.
-- `lead` is the NST lead: everything `nst` can do, plus renaming places. That covers regions and fronts on the main map (for example the North Pass) and the places drawn on each region's map. Reps can still name the sites they add themselves.
+- `lead` is the NST lead: everything `nst` can do, plus renaming places and deciding chapter requests. That covers regions and fronts on the main map (for example the North Pass) and the places drawn on each region's map. Reps can still name the sites they add themselves.
 - Set `active` to FALSE to switch a code off. Change the code to revoke it.
 
 Chapter ids: `ritterstein`, `kreigstor`, `bracken`, `eisendreieck`, `sudenburg`, `stromstadt`, `braylong`, `handelsdorf`, `weitnordlich`, `helsreik`, `reefwatch`.
@@ -74,6 +74,10 @@ Reps can sign in from inside the embed too.
 - A region's **Condition** shows on the map: **besieged** regions are hatched red and **fallen** ones are blacked out, on the main map and the region's own map.
 - Every town has a **danger level**, from Calm through Uneasy, Dangerous and Perilous to Dire, shown as the colour of its ring on the map. It's worked out from the threats and the condition at the step on screen: the highest tier there, one step more for three or more threats at once or for a siege, Dire if the region has fallen. The NST can set a level by hand, with a reason players see, from **Set the danger level by hand** on the region's page; that only applies at the latest step of the story.
 - A town's page opens with **Right now**: its danger level and why, what players feel, its condition and since when, and its latest events. The **Right now** tab lists every chapter at a glance, most dangerous first.
+- **Dispatches** are news for players, written by each chapter's story team (or rep, or the NST) after their events. Anyone can read them, including on the wiki: add `&tab=dispatches` to the embed link to open on them. The NST can pin one to the top and write national dispatches.
+- The **Calendar** lists each chapter's coming events, and each town shows its next event date on the map (the **Next event dates** layer). The tab shows how many events fall in the next 30 days. Story teams and reps add their own chapter's events; story teams and the NST also see what's planned and the main threat, and get a heads-up when two chapters plan the same evil within 30 days. The NST can link the full Swordcraft calendar from the bottom of the tab.
+- **Requests** let a chapter ask before a story crosses into another chapter. Only the chapters involved and the NST see a request, and they can comment on it; only the NST lead can approve, approve with changes, or decline it. Players never see requests.
+- The **Yearly recap** (NST only, when viewing as NST) sums up a year from the map: events posted, threats risen and beaten back, regions besieged, fallen or liberated, entries and dispatches by chapter, the biggest moments, and what needs a look (chapters with no events, Lesser Evils left alone for three or more steps, regions that ended the year Perilous or Dire). Events count towards the year they were saved in.
 - Each region map shows a notice while it's being updated. The NST can change its wording, or switch it off for a map that's finished, from the region's page.
 - Click a site to see what's there. Reps use the steppers to place an External Evil at that site, and **+ Lesser evil or threat here** to add one.
 - **Edit sites** (reps, in their own region): click empty ground to add a site, drag a site to move it, rename or hide the built-in ones.
@@ -101,7 +105,9 @@ Each row in **Events** is one step of the story. Its `changes` column holds a JS
 
 **Export the story as JSON** under Map setup in the Story log downloads everything at once.
 
-The **Settings** tab also holds `notice` (the region map notice and which maps have it switched off), `regions` (names and descriptions the NST lead has changed) and `danger` (levels the NST has set by hand: `{"bracken": {"level": 3, "why": "...", "feel": "..."}}`, where 0 is Calm and 4 is Dire).
+The **Settings** tab also holds `notice` (the region map notice and which maps have it switched off), `regions` (names and descriptions the NST lead has changed) `danger` (levels the NST has set by hand: `{"bracken": {"level": 3, "why": "...", "feel": "..."}}`, where 0 is Calm and 4 is Dire) and `calendar` (`{"url": "..."}`, the link to the full Swordcraft calendar).
+
+The **Dispatches**, **Calendar** and **Requests** tabs are created the first time they're needed. Calendar dates are `yyyy-mm-dd`; `evil` is an External Evil id (`pale`, `drowned`, `gor`, `wild`) or a Lesser Evil id. A request's `affects` is a comma-separated list of chapter ids, its `status` is `waiting`, `approved`, `changes` or `declined`, and its `comments` are JSON.
 
 ## Changing the map
 

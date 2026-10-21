@@ -511,7 +511,7 @@ function drawCities() {
 }
 function drawOverlays(opts = {}) {
   const st = currentState();
-  paintDanger(st);
+  paintDanger(st); paintCalendar();
   const ev = currentEvent();
   const prev = prevForView();
   const fresh = opts.fresh !== false;
