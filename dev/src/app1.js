@@ -30,10 +30,10 @@ const EVILS = {
 const TIERS = [
   { n: 0, name: "None", fielded: "", reach: "", approval: "" },
   { n: 1, name: "Rumour", fielded: "Signs, omens, aftermath or a lone scout", reach: "One scene", approval: "Chapter story team" },
-  { n: 2, name: "Pocket problem", fielded: "Swarm and bruiser units only", reach: "One event, one site", approval: "Chapter story team, logged with the NST rep" },
-  { n: 3, name: "Incursion", fielded: "Adds controllers and at most one champion", reach: "One region, a few events", approval: "NST rep signs off" },
-  { n: 4, name: "Campaign", fielded: "Champions recur; a named lieutenant may appear", reach: "A region or several chapters, across a season", approval: "NST (Brett or Andrew)" },
-  { n: 5, name: "National event", fielded: "The figurehead appears", reach: "The whole Abandoned Lands; permanent change", approval: "NST only" },
+  { n: 2, name: "Pocket problem", fielded: "Swarm and bruiser units only", reach: "One event, one site", approval: "Chapter story team, logged with the NST Rep" },
+  { n: 3, name: "Incursion", fielded: "Adds controllers and at most one champion", reach: "One region, a few events", approval: "NST Rep signs off" },
+  { n: 4, name: "Campaign", fielded: "Champions recur; a named lieutenant may appear", reach: "A region or several chapters, across a season", approval: "NST Team (Brett or Andrew)" },
+  { n: 5, name: "National event", fielded: "The figurehead appears", reach: "The whole Abandoned Lands; permanent change", approval: "NST Team only" },
 ];
 /* Lesser Evils (guidebook chapter 12). They stop at tier 3. */
 const LESSER = {
@@ -45,9 +45,9 @@ const LESSER = {
 };
 const OTHER = { bandits: "Bandits and raiders", beasts: "Beasts and monsters", cult: "Cult", faction: "Rival faction", disaster: "Disaster, plague or blight", unknown: "Unknown" };
 const STATUSES = { holding: "Holding", threatened: "Threatened", besieged: "Besieged", fallen: "Fallen", liberated: "Liberated" };
-const VIS = { public: "Players", story: "Story team", nst: "NST only" };
+const VIS = { public: "Players", story: "Story team", nst: "NST Team only" };
 const VIS_RANK = { public: 0, story: 1, nst: 2 };
-const ROLES = { viewer: { name: "Viewer", max: "public" }, story: { name: "Story team", max: "story" }, rep: { name: "NST rep", max: "nst" }, nst: { name: "NST", max: "nst" }, lead: { name: "NST lead", max: "nst" } };
+const ROLES = { viewer: { name: "Viewer", max: "public" }, story: { name: "Story team", max: "story" }, rep: { name: "NST Rep", max: "nst" }, nst: { name: "NST Team", max: "nst" }, lead: { name: "NST Lead", max: "nst" } };
 /* Pinpoints: story moments and points of interest placed on a region's map. */
 const MARKS = {
   pin: { name: "Point of interest", glyph: "●" }, star: { name: "Story moment", glyph: "★" }, flag: { name: "Camp or rally point", glyph: "⚑" },
@@ -187,10 +187,10 @@ const canEditEvent = ev => isNST() || (role() === "rep" && myChapters().includes
 const maxLayer = () => ROLES[role()]?.max || "public";
 /* Story team codes can add details to places in their own chapters. */
 const canSiteDetails = id => canEditRegion(id) || (role() === "story" && (Store.me.chapters || []).includes(id));
-/* Built-in place names belong to the NST lead; reps name the places they add. */
+/* Built-in place names belong to the NST Lead; reps name the places they add. */
 const canRenameSite = s => isLead() || (!!s.custom && canEditRegion(s.region));
 
-/* The NST lead can rename regions and rewrite their descriptions. */
+/* The NST Lead can rename regions and rewrite their descriptions. */
 function applyRegionInfo() {
   const o = S.settings.regions || {};
   REGIONS.forEach(r => { const d = REGION_DEFAULTS[r.id], x = o[r.id] || {}; r.name = x.name || d.name; r.blurb = x.blurb || d.blurb; });
@@ -319,7 +319,7 @@ function lastChange(test) {
   return null;
 }
 
-/* Danger: worked out from the threats and the condition at the step on screen. The NST can set a region's level by hand. */
+/* Danger: worked out from the threats and the condition at the step on screen. The NST Team can set a region's level by hand. */
 const DANGER = [
   { name: "Calm", color: "var(--ok)", feel: "Roads are open and markets are busy. People sleep easy." },
   { name: "Uneasy", color: "var(--uneasy)", feel: "Odd tales on the roads. Travellers keep together and watch the treeline." },
@@ -338,9 +338,9 @@ function dangerOf(st, id) {
   if (here.status === "besieged") { lv = Math.min(4, Math.max(lv + 1, 2)); why.push("region besieged"); }
   if (here.status === "fallen") { lv = 4; why.push("region fallen"); }
   if (here.status === "liberated" && lv > 0) { lv--; why.push("recently liberated"); }
-  // A level set by the NST describes the story now, so it only applies at the latest step.
+  // A level set by the NST Team describes the story now, so it only applies at the latest step.
   const o = S.settings.danger?.[id], latest = !(S.draft && S.draft.changes.length) && S.idx >= EV.length - 1;
-  if (o && DANGER[o.level] && latest) return { lv: +o.level, why: [o.why || "Set by the NST"], feel: o.feel || DANGER[o.level].feel, set: true, auto: lv };
+  if (o && DANGER[o.level] && latest) return { lv: +o.level, why: [o.why || "Set by the NST Team"], feel: o.feel || DANGER[o.level].feel, set: true, auto: lv };
   return { lv, why, feel: DANGER[lv].feel, set: false, auto: lv };
 }
 const dangerShown = () => $("ly-danger").checked;

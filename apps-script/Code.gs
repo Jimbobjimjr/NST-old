@@ -13,7 +13,7 @@
  *   Settings map layout, the region map notice, renamed places, danger levels set by hand, the calendar link
  *   Dispatches  news for players, written by each chapter's story team
  *   Calendar    upcoming chapter events; the plan and main threat are for story teams only
- *   Requests    chapter requests; only the chapters involved and the NST see them, only the NST lead decides
+ *   Requests    chapter requests; only the chapters involved and the NST Team see them, only the NST Lead decides
  *   Log      every change, who made it and when
  */
 
@@ -54,7 +54,7 @@ function setup() {
   if (readRows('Events').length === 0) writeRow('Events', 'id', eventToRow(OPENING));
   if (readRows('Reps').length === 0) {
     var code = 'nst-' + Utilities.getUuid().slice(0, 8);
-    sheet('Reps').appendRow([code, 'NST lead', 'nst', 'all', true]);
+    sheet('Reps').appendRow([code, 'NST Lead', 'nst', 'all', true]);
     Logger.log('Your NST code is ' + code + '. Add a row in the Reps tab for each chapter rep.');
   }
   ss.getSheetByName('Sheet1') && ss.getSheetByName('Sheet1').getLastRow() === 0 && ss.deleteSheet(ss.getSheetByName('Sheet1'));
@@ -113,7 +113,7 @@ function act(me, b) {
       return {};
     }
     case 'reorder': {
-      if (!isNst(me)) throw new Error('Only the NST can reorder the story.');
+      if (!isNst(me)) throw new Error('Only the NST Team can reorder the story.');
       (b.orders || []).forEach(function (o) { var r = findRow('Events', 'id', o.id); if (r) { r.order = o.order; writeRow('Events', 'id', r); } });
       log(me, 'reorder', (b.orders || []).length + ' events');
       return {};
@@ -131,7 +131,7 @@ function act(me, b) {
       } else {
         if (!canEditRegion(me, s.region)) throw new Error('You can only change sites in your own region.');
         var named = s.name !== undefined && String(s.name).trim() !== '' && String(s.name) !== String(cur.name || '');
-        if (named && !custom && me.role !== 'lead') throw new Error('Only the NST lead can rename the map\'s own places.');
+        if (named && !custom && me.role !== 'lead') throw new Error('Only the NST Lead can rename the map\'s own places.');
         ['name', 'x', 'y', 'note', 'story', 'hidden'].forEach(function (k) { if (s[k] !== undefined) cur[k] = s[k]; });
       }
       cur.custom = custom;
@@ -156,16 +156,16 @@ function act(me, b) {
       return {};
     }
     case 'savePositions': {
-      if (!isNst(me)) throw new Error('Only the NST can rearrange the main map.');
+      if (!isNst(me)) throw new Error('Only the NST Team can rearrange the main map.');
       writeRow('Settings', 'key', { key: 'positions', value: JSON.stringify(b.positions || {}) });
       log(me, 'layout', '');
       return {};
     }
     case 'saveSetting': {
-      if (b.key === 'notice') { if (!isNst(me)) throw new Error('Only the NST can change the map notice.'); }
-      else if (b.key === 'regions') { if (me.role !== 'lead') throw new Error('Only the NST lead can rename places on the map.'); }
-      else if (b.key === 'danger') { if (!isNst(me)) throw new Error('Only the NST can set a danger level by hand.'); }
-      else if (b.key === 'calendar') { if (!isNst(me)) throw new Error('Only the NST can change the calendar link.'); }
+      if (b.key === 'notice') { if (!isNst(me)) throw new Error('Only the NST Team can change the map notice.'); }
+      else if (b.key === 'regions') { if (me.role !== 'lead') throw new Error('Only the NST Lead can rename places on the map.'); }
+      else if (b.key === 'danger') { if (!isNst(me)) throw new Error('Only the NST Team can set a danger level by hand.'); }
+      else if (b.key === 'calendar') { if (!isNst(me)) throw new Error('Only the NST Team can change the calendar link.'); }
       else throw new Error('Unknown setting ' + b.key);
       writeRow('Settings', 'key', { key: b.key, value: JSON.stringify(b.value === undefined ? null : b.value) });
       log(me, 'setting', b.key);
@@ -238,7 +238,7 @@ function act(me, b) {
       return {};
     }
     case 'decideRequest': {
-      if (me.role !== 'lead') throw new Error('Only the NST lead can decide a chapter request.');
+      if (me.role !== 'lead') throw new Error('Only the NST Lead can decide a chapter request.');
       var dq = findRow('Requests', 'id', b.id);
       if (!dq) throw new Error('That request no longer exists.');
       if (REQUEST_STATUS.indexOf(b.status) < 0) throw new Error('Unknown decision ' + b.status);
@@ -304,6 +304,9 @@ function auth(code) {
     var r = rows[i];
     if (String(r.code).trim() !== code || r.active === false || String(r.active).toUpperCase() === 'FALSE') continue;
     var role = String(r.role || 'rep').toLowerCase().trim();
+    if (/^nst[\s_-]*team$/.test(role)) role = 'nst';
+    if (/^nst[\s_-]*lead$/.test(role)) role = 'lead';
+    if (/^nst[\s_-]*rep$/.test(role)) role = 'rep';
     if (!ROLE_RANK.hasOwnProperty(role) || role === 'viewer') role = 'rep';
     var ch = String(r.chapters || '').toLowerCase().trim();
     return { role: role, name: r.name || 'Rep', chapters: ch === 'all' ? CHAPTERS.slice() : ch.split(/[\s,;]+/).filter(function (x) { return x; }) };
@@ -313,7 +316,7 @@ function auth(code) {
 function isNst(me) { return me.role === 'nst' || me.role === 'lead'; }
 function canEditChapter(me, chapter) { return isNst(me) || (me.role === 'rep' && me.chapters.indexOf(chapter) >= 0); }
 function canEditRegion(me, region) { return canEditChapter(me, region); }
-/* Dispatches, calendar entries and requests: story teams and reps for their own chapters, the NST for any. */
+/* Dispatches, calendar entries and requests: story teams and reps for their own chapters, the NST Team for any. */
 function canWrite(me, chapter) { return isNst(me) || ((me.role === 'story' || me.role === 'rep') && me.chapters.indexOf(chapter) >= 0); }
 function involved(me, req) {
   if (isNst(me)) return true;
@@ -323,8 +326,8 @@ function involved(me, req) {
 function checkTiers(me, changes) {
   if (isNst(me)) return;
   changes.forEach(function (c) {
-    if ((c.type === 'set' || c.type === 'move') && +c.tier >= 4) throw new Error('Tier 4 and 5 appearances need Brett or Andrew. Ask the NST to record this one.');
-    if (c.type === 'threat' && c.kind === 'lesser' && +c.tier > LESSER_MAX) throw new Error('Lesser Evils stop at tier 3. The NST decides anything beyond that.');
+    if ((c.type === 'set' || c.type === 'move') && +c.tier >= 4) throw new Error('Tier 4 and 5 appearances need Brett or Andrew. Ask the NST Team to record this one.');
+    if (c.type === 'threat' && c.kind === 'lesser' && +c.tier > LESSER_MAX) throw new Error('Lesser Evils stop at tier 3. The NST Team decides anything beyond that.');
   });
 }
 function nextOrder() { var m = -1; readRows('Events').forEach(function (r) { m = Math.max(m, num(r.order)); }); return m + 1; }

@@ -2,11 +2,11 @@
 /* ---------- Dispatches, the events calendar, chapter requests and the yearly recap ---------- */
 S.dispatches = []; S.calendar = []; S.requests = [];
 S.dispForm = null; S.calForm = null; S.reqForm = null; S.dispFilter = ""; S.recapYear = null;
-const REQ_STATUS = { waiting: "Waiting for the NST lead", approved: "Approved", changes: "Approved with changes", declined: "Declined" };
+const REQ_STATUS = { waiting: "Waiting for the NST Lead", approved: "Approved", changes: "Approved with changes", declined: "Declined" };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-/* Story teams and reps write dispatches, calendar entries and requests for their own chapters; the NST for any. */
+/* Story teams and reps write dispatches, calendar entries and requests for their own chapters; the NST Team for any. */
 const canWriteFor = ch => isNST() || ((role() === "story" || role() === "rep") && (Store.me.chapters || []).includes(ch));
 const writableChapters = () => CHAPTERS.filter(r => canWriteFor(r.id));
 const storyLayer = () => VIS_RANK[S.layer] >= 1;
@@ -111,7 +111,7 @@ function renderCalendar() {
       <div class="field"><label class="lbl" for="cl-ch">Chapter</label><select id="cl-ch">${opts}</select></div></div>
       <div class="field"><label class="lbl" for="cl-name">Event name</label><input id="cl-name" value="${esc(f.name)}" placeholder="e.g. Bracken: The Thorn Moot"></div>
       <div class="field"><label class="lbl" for="cl-link">Link (optional)</label><input id="cl-link" value="${esc(f.link)}" placeholder="The event's page or ticket link"></div>
-      <div class="lbl" style="margin-top:4px">For story teams and the NST only</div>
+      <div class="lbl" style="margin-top:4px">For story teams and the NST Team only</div>
       <div class="field"><label class="lbl" for="cl-evil">Main threat planned</label><select id="cl-evil">${opt("", "Not decided", f.evil)}<optgroup label="External Evils">${EVIL_ORDER.map(k => opt(k, EVILS[k].short, f.evil)).join("")}</optgroup><optgroup label="Lesser Evils">${Object.keys(LESSER).map(k => opt(k, LESSER[k].name, f.evil)).join("")}</optgroup></select></div>
       <div class="field"><label class="lbl" for="cl-plan">What's planned</label><textarea id="cl-plan" placeholder="A line or two for neighbouring story teams">${esc(f.plan)}</textarea></div>
       <div class="btnrow"><button type="button" class="btn primary" id="cl-save">${f.id ? "Save changes" : "Add to the calendar"}</button><button type="button" class="btn big" id="cl-cancel">Discard</button></div></div>`;
@@ -128,17 +128,17 @@ function renderCalendar() {
   pane.innerHTML = html;
 }
 
-/* ---------- Chapter requests: never shown to players, decided by the NST lead ---------- */
+/* ---------- Chapter requests: never shown to players, decided by the NST Lead ---------- */
 function renderRequests() {
   const pane = $("pane-requests"), mine = writableChapters();
-  let html = `<div><h3>Chapter requests</h3><p class="small muted" style="margin:6px 0 0">Ask before a story crosses a border. The chapters involved can comment; only the NST lead decides. Players never see these.</p></div>`;
+  let html = `<div><h3>Chapter requests</h3><p class="small muted" style="margin:6px 0 0">Ask before a story crosses a border. The chapters involved can comment; only the NST Lead decides. Players never see these.</p></div>`;
   const f = S.reqForm;
   if (f) {
     html += `<div class="draft"><div class="lbl">${f.id ? "Editing request" : "New request"}</div>
       <div class="field"><label class="lbl" for="rq-ch">Asking for</label><select id="rq-ch">${mine.map(r => opt(r.id, r.name, f.chapter)).join("")}</select></div>
       <div class="field"><div class="lbl">Chapters it affects</div><div class="ckgrid">${CHAPTERS.filter(r => r.id !== f.chapter).map(r => `<label class="ck"><input type="checkbox" data-rqaff="${r.id}" ${f.affects.includes(r.id) ? "checked" : ""}> ${esc(r.name)}</label>`).join("")}</div></div>
       <div class="field"><label class="lbl" for="rq-text">What are you asking?</label><textarea id="rq-text" rows="4" placeholder="e.g. Can the Pale Host scouts from Braylong follow our players into our woods?">${esc(f.text)}</textarea></div>
-      <div class="btnrow"><button type="button" class="btn primary" id="rq-save">${f.id ? "Save changes" : "Send to the NST lead"}</button><button type="button" class="btn big" id="rq-cancel">Discard</button></div></div>`;
+      <div class="btnrow"><button type="button" class="btn primary" id="rq-save">${f.id ? "Save changes" : "Send to the NST Lead"}</button><button type="button" class="btn big" id="rq-cancel">Discard</button></div></div>`;
   } else if (mine.length) html += `<div class="btnrow"><button type="button" class="btn primary" id="rq-new">Make a request</button></div>`;
   const list = S.requests.filter(involvedIn).sort((a, b) => (a.status === "waiting" ? 0 : 1) - (b.status === "waiting" ? 0 : 1) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   html += list.length ? `<div class="dlist">${list.map(q => {
@@ -146,17 +146,17 @@ function renderRequests() {
     return `<article class="request st-${q.status}"><div class="lbl">${esc(chName(q.chapter))} → ${esc((q.affects || []).map(chName).join(", "))}</div>
       <div><span class="pill rq-${q.status}">${REQ_STATUS[q.status] || q.status}</span></div>
       <p>${esc(q.text).replace(/\n/g, "<br>")}</p><div class="note">Asked by ${esc(q.createdBy || "someone")}${q.createdAt ? ", " + esc(isoDay(q.createdAt)) : ""}</div>
-      ${q.reply || q.decidedBy ? `<div class="rqreply"><b>${esc(q.decidedBy || "NST lead")}:</b> ${esc(q.reply || REQ_STATUS[q.status])}</div>` : ""}
+      ${q.reply || q.decidedBy ? `<div class="rqreply"><b>${esc(q.decidedBy || "NST Lead")}:</b> ${esc(q.reply || REQ_STATUS[q.status])}</div>` : ""}
       ${(q.comments || []).length ? `<div class="rqcomments">${q.comments.map(c => `<div><b>${esc(c.by)}</b> ${esc(c.text)}</div>`).join("")}</div>` : ""}
       <div class="rqcomment"><input data-rqc="${q.id}" aria-label="Comment on this request" placeholder="Add a comment"><button type="button" class="btn" data-rqcsend="${q.id}">Comment</button></div>
-      ${isLead() ? `<div class="rqdecide"><div class="lbl">Your decision · NST lead</div><div class="row2"><select data-rqst="${q.id}" aria-label="Decision">${Object.keys(REQ_STATUS).map(k => opt(k, k === "waiting" ? "Not decided yet" : REQ_STATUS[k], q.status)).join("")}</select>
+      ${isLead() ? `<div class="rqdecide"><div class="lbl">Your decision · NST Lead</div><div class="row2"><select data-rqst="${q.id}" aria-label="Decision">${Object.keys(REQ_STATUS).map(k => opt(k, k === "waiting" ? "Not decided yet" : REQ_STATUS[k], q.status)).join("")}</select>
         <button type="button" class="btn primary" data-rqdecide="${q.id}">Save decision</button></div><input data-rqreply="${q.id}" aria-label="Note with the decision" value="${esc(q.reply || "")}" placeholder="A note with your decision (optional)"></div>` : ""}
       ${own || isLead() ? `<div class="btnrow">${own ? `<button type="button" class="btn" data-rqedit="${q.id}">Edit</button>` : ""}${S.confirmDel === q.id ? `<button type="button" class="btn danger" data-rqdelok="${q.id}">Withdraw</button><button type="button" class="btn" data-delno="1">Keep</button>` : `<button type="button" class="btn" data-rqdel="${q.id}">Withdraw</button>`}</div>` : ""}</article>`;
   }).join("")}</div>` : `<div class="empty">No requests involving ${isNST() ? "any chapter" : "your chapter"} yet.</div>`;
   pane.innerHTML = html;
 }
 
-/* ---------- Yearly recap, for the NST ---------- */
+/* ---------- Yearly recap, for the NST Team ---------- */
 function eventYear(e) {
   const m = String(e.createdAt || e.updatedAt || "").match(/^(\d{4})/) || String(e.when || "").match(/\b(20\d\d)\b/);
   return m ? +m[1] : null;
@@ -201,7 +201,7 @@ function renderRecap() {
   if (!years.includes(S.recapYear)) S.recapYear = years[0];
   const y = S.recapYear, r = recapFor(y), uniq = a => [...new Set(a)].map(id => esc(R[id].name)).join(", ");
   const stat = (n, l) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`;
-  let html = `<div><h3>Yearly recap</h3><p class="small muted" style="margin:6px 0 0">For the NST only: the year's story from the map, ready for planning the next one.</p></div>
+  let html = `<div><h3>Yearly recap</h3><p class="small muted" style="margin:6px 0 0">For the NST Team only: the year's story from the map, ready for planning the next one.</p></div>
     <div class="field"><label class="lbl" for="rc-year">Year</label><select id="rc-year">${years.map(v => opt(v, v, y)).join("")}</select></div>
     <div class="stats">${stat(r.entries, "events posted")}${stat(r.rose, "threats rose")}${stat(r.beaten, "threats beaten back")}${stat(new Set(r.besieged).size, "regions besieged")}${stat(new Set(r.fallen).size, "regions fell")}${stat(new Set(r.liberated).size, "regions liberated")}</div>`;
   if (r.besieged.length || r.fallen.length || r.liberated.length) html += `<div class="small">${r.besieged.length ? `<div>Besieged: ${uniq(r.besieged)}</div>` : ""}${r.fallen.length ? `<div>Fell: ${uniq(r.fallen)}</div>` : ""}${r.liberated.length ? `<div>Liberated: ${uniq(r.liberated)}</div>` : ""}</div>`;
@@ -281,7 +281,7 @@ document.addEventListener("click", async e => {
     const f = S.reqForm, item = { id: f.id || undefined, chapter: $("rq-ch").value, affects: f.affects.filter(c => c !== $("rq-ch").value), text: valOf("rq-text") };
     if (!item.affects.length) { toast("Pick the chapters it affects"); return; }
     if (!item.text) { toast("Say what you're asking"); return; }
-    if (await act("saveRequest", { item }, f.id ? "Request updated" : "Sent to the NST lead")) { S.reqForm = null; again(); }
+    if (await act("saveRequest", { item }, f.id ? "Request updated" : "Sent to the NST Lead")) { S.reqForm = null; again(); }
     return;
   }
   if (d.rqcsend) { const inp = document.querySelector(`[data-rqc="${d.rqcsend}"]`), text = inp?.value.trim(); if (!text) return; if (await act("commentRequest", { id: d.rqcsend, text }, "Comment added")) again(); return; }
