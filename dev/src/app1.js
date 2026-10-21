@@ -158,12 +158,12 @@ const OPENING = { id: "opening", order: 0, title: "Opening positions", when: "NS
 
 /* ---------- App state ---------- */
 const S = {
-  events: [], sites: {}, notes: {}, usingFallback: true, idx: 0, layer: "public", hidden: new Set(), focus: null, selected: null, hover: null,
+  logFilter: "", events: [], sites: {}, notes: {}, usingFallback: true, idx: 0, layer: "public", hidden: new Set(), focus: null, selected: null, hover: null,
   site: null, siteEdit: false, pendingSite: null,
   tab: "threats", downloads: null,
   positions: {}, layoutMode: false, draft: null, playing: false, confirmDel: null,
   vb: { x: 0, y: 0, w: W, h: H },
-  settings: { notice: { text: NOTICE_TEXT, done: [] }, regions: {}, danger: {} }, placing: null,
+  settings: { notice: { text: NOTICE_TEXT, done: [] }, regions: {}, danger: {}, turns: {} }, placing: null,
 };
 const Store = { mode: "local", me: { role: "viewer", name: "", chapters: [] } };
 try { const l = localStorage.getItem("alwm.layer"); if (l && VIS_RANK[l] !== undefined) S.layer = l; } catch (e) {}
@@ -223,8 +223,24 @@ function siteXY(v, s) { return [v.x + s.x * v.w, v.y + s.y * v.h]; }
 /* ---------- Story engine ---------- */
 function visibleEvents() {
   const src = S.usingFallback ? [OPENING] : S.events;
-  return src.filter(e => VIS_RANK[e.visibility || "public"] <= VIS_RANK[S.layer]).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return src.filter(e => VIS_RANK[e.visibility || "public"] <= VIS_RANK[S.layer]).slice().sort((a, b) => turnKey(a) - turnKey(b) || (a.order ?? 0) - (b.order ?? 0));
 }
+/* Turns: the NST Team opens each turn of the national story, and every entry posted meanwhile goes into it.
+   Entries saved before turns existed have no turn, so each one is its own turn, keyed by its order. */
+const turnKey = e => e.turn != null && e.turn !== "" ? +e.turn : +(e.order ?? 0);
+function allTurnKeys() {
+  const keys = new Set((S.usingFallback ? [OPENING] : S.events).map(turnKey));
+  const open = S.settings.turns?.open; if (open != null) keys.add(+open);
+  return [...keys].sort((a, b) => a - b);
+}
+/* The turn new entries go into: the one the NST Team opened last, or the latest turn with entries. */
+function openTurnKey() { const k = allTurnKeys(); return k.length ? k[k.length - 1] : 0; }
+const turnNo = key => allTurnKeys().indexOf(+key) + 1;
+const turnLabel = key => S.settings.turns?.labels?.[key] || "";
+const turnName = key => `Turn ${turnNo(key)}${turnLabel(key) ? " · " + turnLabel(key) : ""}`;
+let TURNS = [];
+function turnIndexOf(i) { const t = TURNS.findIndex(x => i >= x.first && i <= x.last); return t < 0 ? TURNS.length - 1 : t; }
+const curTurn = () => TURNS[turnIndexOf(S.idx)];
 function blankRegion() { return { p: {}, base: {}, at: {}, threats: {}, marks: {}, status: null, note: "" }; }
 function blankState() { const s = {}; REGIONS.forEach(r => s[r.id] = blankRegion()); return s; }
 function cloneState(s) {
@@ -293,7 +309,11 @@ function rebuild() {
   EV = visibleEvents();
   STATES = []; let s = blankState();
   EV.forEach(e => { s = applyEvent(s, e); STATES.push(s); });
+  TURNS = [];
+  EV.forEach((e, i) => { const k = turnKey(e), t = TURNS[TURNS.length - 1]; if (t && t.key === k) { t.last = i; t.events.push(e); } else TURNS.push({ key: k, first: i, last: i, events: [e] }); });
   if (S.idx > EV.length - 1) S.idx = Math.max(0, EV.length - 1);
+  // The map always shows the end of a turn: every entry in it has happened.
+  if (TURNS.length) S.idx = TURNS[turnIndexOf(S.idx)].last;
 }
 function currentState() {
   if (S.draft && S.draft.changes.length) return applyEvent(draftBaseState(), S.draft);
@@ -305,8 +325,15 @@ function draftBaseState() {
   return STATES[EV.length - 1] || blankState();
 }
 function prevStateOf(i) { return i > 0 ? STATES[i - 1] : blankState(); }
-function prevForView() { return S.draft && S.draft.changes.length ? draftBaseState() : prevStateOf(S.idx); }
-function currentEvent() { return S.draft && S.draft.changes.length ? S.draft : EV[S.idx]; }
+function prevForView() { return S.draft && S.draft.changes.length ? draftBaseState() : prevStateOf(curTurn() ? curTurn().first : S.idx); }
+/* The turn on screen, as one event: its own entry, or all its entries' changes together. */
+function currentEvent() {
+  if (S.draft && S.draft.changes.length) return S.draft;
+  const t = curTurn(); if (!t) return EV[S.idx];
+  if (t.events.length === 1) return t.events[0];
+  const vis = t.events.reduce((m, e) => VIS_RANK[e.visibility || "public"] > VIS_RANK[m] ? e.visibility || "public" : m, "public");
+  return { turn: t.key, multi: t.events, title: turnName(t.key), when: "", chapter: "national", visibility: vis, changes: t.events.flatMap(e => e.changes || []) };
+}
 const threatShown = () => $("ly-threats").checked;
 function allThreats(st) { const out = []; for (const id in st) for (const tid in st[id].threats) out.push({ ...st[id].threats[tid], region: id }); return out; }
 function allMarks(st) { const out = []; for (const id in st) for (const mid in st[id].marks) out.push({ ...st[id].marks[mid], region: id }); return out; }
@@ -543,7 +570,7 @@ function drawOverlays(opts = {}) {
   // trails (earlier moves up to current step)
   G.trails.innerHTML = "";
   if ($("ly-trails").checked) {
-    const upto = S.draft && S.draft.changes.length ? EV.length : S.idx;
+    const upto = S.draft && S.draft.changes.length ? EV.length : (curTurn() ? curTurn().first : S.idx);
     for (let i = 0; i < upto; i++) (EV[i].changes || []).forEach(c => {
       if (c.type !== "move" || S.hidden.has(c.evil) || !R[c.from] || !R[c.to] || c.from === c.to) return;
       el("path", { class: "trail", d: arcD(posOf(c.from), posOf(c.to), .18), stroke: `var(--${c.evil})`, opacity: S.focus && S.focus !== c.evil ? .2 : 1 }, G.trails);
@@ -647,12 +674,14 @@ function renderMap(opts) {
   else if (S.draft && S.draft.changes.length) { bn.hidden = false; bn.textContent = "Previewing your draft event"; }
   else bn.hidden = true;
 }
+function stepTurn(d) { if (TURNS.length) goTo(TURNS[Math.max(0, Math.min(TURNS.length - 1, turnIndexOf(S.idx) + d))].last, d > 0); }
 function goTo(i, animate) {
   if (!EV.length) return;
   i = Math.max(0, Math.min(EV.length - 1, i));
-  const from = S.idx; S.idx = i;
-  const forwardOne = animate && i === from + 1 && !reduced && !RV.id;
-  const moves = forwardOne ? (EV[i].changes || []).filter(c => c.type === "move" && R[c.from] && R[c.to] && c.from !== c.to && !S.hidden.has(c.evil)) : [];
+  const ft = turnIndexOf(S.idx), tt = turnIndexOf(i), turn = TURNS[tt];
+  S.idx = turn.last; i = S.idx;
+  const forwardOne = animate && tt === ft + 1 && !reduced && !RV.id;
+  const moves = forwardOne ? turn.events.flatMap(e => e.changes || []).filter(c => c.type === "move" && R[c.from] && R[c.to] && c.from !== c.to && !S.hidden.has(c.evil)) : [];
   const hide = new Set(moves.map(c => c.to + ":" + c.evil));
   redraw({ hiddenTok: hide, fresh: true });
   moves.forEach(c => {

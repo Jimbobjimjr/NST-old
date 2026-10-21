@@ -18,8 +18,8 @@ const check = (ok, what, extra) => { if (!ok) fails++; console.log((ok ? 'ok   '
   gas.sheets.Reps.appendRow(['lead-1', 'Brett', 'lead', 'all', true]);
   const post = o => gas.post(JSON.stringify(o));
   // Example story: Wildwrought at tier 3 in Bracken, then Bracken besieged with raiders on the south road.
-  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-a', title: 'Thorns and Embers', when: 'Oct', chapter: 'bracken', visibility: 'public', order: 1, changes: [{ type: 'set', evil: 'wild', region: 'bracken', tier: 3 }] } });
-  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-b', title: 'The south road burns', when: 'Nov', chapter: 'bracken', visibility: 'public', order: 2, changes: [{ type: 'status', region: 'bracken', status: 'besieged' }, { type: 'threat', tid: 't1', kind: 'other', group: 'bandits', name: 'South road raiders', tier: 1, region: 'bracken' }] } });
+  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-a', turn: 1, title: 'Thorns and Embers', when: 'Oct', chapter: 'bracken', visibility: 'public', order: 1, changes: [{ type: 'set', evil: 'wild', region: 'bracken', tier: 3 }] } });
+  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-b', turn: 2, title: 'The south road burns', when: 'Nov', chapter: 'bracken', visibility: 'public', order: 2, changes: [{ type: 'status', region: 'bracken', status: 'besieged' }, { type: 'threat', tid: 't1', kind: 'other', group: 'bandits', name: 'South road raiders', tier: 1, region: 'bracken' }] } });
   check(!!post({ action: 'saveSetting', code: 'bracken-123', key: 'danger', value: {} }).error, 'a rep cannot set a danger level by hand');
 
   const open = async (opts) => {

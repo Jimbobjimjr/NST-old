@@ -95,7 +95,7 @@ const check = (ok, what, extra) => { if (!ok) fails++; console.log((ok ? 'ok   '
   await p.locator('#tab-log').click(); await sleep(200);
   await p.fill('#d-title', 'The bell falls silent');
   await p.click('#d-save'); await sleep(800);
-  const evs = gas.sheets.Events.rows.slice(1).map(r => ({ title: r[2], changes: JSON.parse(r[7]) }));
+  const hd = gas.sheets.Events.rows[0], evs = gas.sheets.Events.rows.slice(1).map(r => ({ title: r[hd.indexOf('title')], changes: JSON.parse(r[hd.indexOf('changes')]) }));
   const ev = evs.find(e => e.title === 'The bell falls silent');
   const mk = ev && ev.changes.find(c => c.type === 'mark');
   check(mk && mk.label === 'The burned chapel' && mk.icon === 'loss' && mk.x > .2 && mk.x < .4 && mk.site === undefined, 'pinpoint saved with its spot', mk);
