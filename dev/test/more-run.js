@@ -133,7 +133,7 @@ const short = s => { const [y, m, d] = s.split('-').map(Number); return `${d} ${
   check(/5\s*events posted/.test(rc), 'recap counts the year\'s events', rc.match(/\d+\s*events posted/)?.[0]);
   check(/Besieged: Bracken/.test(rc), 'recap lists besieged regions');
   check(/No events in 2026 from Ritterstein, /.test(rc), 'recap flags quiet chapters');
-  check(/Forsworn has sat in Braylong at tier 2 for 4 turns/.test(rc), 'recap flags a Lesser Evil left alone', rc.match(/Forsworn[^.]*/)?.[0]);
+  check(/Forsworn has sat in Braylong at tier 2 for 4 years/.test(rc), 'recap flags a Lesser Evil left alone', rc.match(/Forsworn[^.]*/)?.[0]);
   check(/Thorns and Embers/.test(await text(p, '#pane-recap .hist')), 'recap lists the biggest moments');
   await p.locator('#pane-recap').screenshot({ path: OUT + 'm6-recap.png' });
   await p.selectOption('#rc-year', '2025'); await sleep(300);

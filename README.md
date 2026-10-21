@@ -54,7 +54,7 @@ Any static host works. Two free options:
 
 ## 4. Embed it in the wiki
 
-Open the hosted map and press **Embed**. It gives you code like this:
+Open the hosted map, sign in with the NST Lead's code and press **Embed** (only the NST Lead sees that button). It gives you code like this:
 
 ```html
 <iframe src="https://YOUR-SITE/index.html?embed=1" title="Abandoned Lands Story Map" width="100%" height="860" style="border:0" loading="lazy" allow="fullscreen" allowfullscreen></iframe>
@@ -78,7 +78,7 @@ Reps can sign in from inside the embed too.
 - The **Calendar** shows every chapter's events for the year, month by month (with a year picker; past events are greyed), and each town shows its next event date on the map (the **Next event dates** layer). The tab shows how many events fall in the next 30 days. Story teams and reps add their own chapter's events; story teams and the NST Team also see what's planned and the main threat, and get a heads-up when two chapters plan the same evil within 30 days. The NST Team can link the full Swordcraft calendar from the bottom of the tab.
 - **Requests** let a chapter ask before a story crosses into another chapter. Only the chapters involved and the NST Team see a request, and they can comment on it; only the NST Lead can approve, approve with changes, or decline it. Players never see requests.
 - The **Yearly recap** (NST Team only, when viewing as NST) sums up a year from the map: events posted, threats risen and beaten back, regions besieged, fallen or liberated, entries and dispatches by chapter, the biggest moments, and what needs a look (chapters with no events, Lesser Evils left alone for three or more steps, regions that ended the year Perilous or Dire). Events count towards the year they were saved in.
-- The story moves in **turns**. The NST Team opens each turn (for example "November 2026") from the top of the **Story log**, and every entry posted until the next turn goes into it, so several chapters' events can happen in the same turn. The count at the top of the map and the timeline step through turns, not single entries. Reps always post into the current turn; the NST Team can move an entry to another turn when editing it. Entries saved before turns existed are each their own turn.
+- The story moves in **years**. The NST Team starts each year (for example "2026" or "The Year of Ash") from the top of the **Story log**, and every entry posted until the next year goes into it, so several chapters' events can happen in the same year. The count at the top of the map and the timeline step through years, not single entries. Reps always post into the current year; the NST Team can move an entry to another year when editing it. Entries saved before years existed are each their own year. (In the sheet these are still called turns.)
 - Each region also has **its own story**: a town's page lists every entry that touched it (beat 3 of 5, and so on) with buttons to go through them, and **Whose story** in the Story log shows one chapter's entries on their own.
 - Each region map shows a notice while it's being updated. The NST Team can change its wording, or switch it off for a map that's finished, from the region's page.
 - Click a site to see what's there. Reps use the steppers to place an External Evil at that site, and **+ Lesser evil or threat here** to add one.

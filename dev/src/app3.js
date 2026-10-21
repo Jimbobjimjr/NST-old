@@ -212,7 +212,7 @@ function renderRecap() {
   if (r.besieged.length || r.fallen.length || r.liberated.length) html += `<div class="small">${r.besieged.length ? `<div>Besieged: ${uniq(r.besieged)}</div>` : ""}${r.fallen.length ? `<div>Fell: ${uniq(r.fallen)}</div>` : ""}${r.liberated.length ? `<div>Liberated: ${uniq(r.liberated)}</div>` : ""}</div>`;
   const looks = [
     ...(r.quiet.length ? [`No events in ${y} from ${r.quiet.map(id => esc(R[id].name)).join(", ")}.`] : []),
-    ...r.lingering.map(x => `${esc(threatName(x.t))} has sat in ${esc(R[x.t.region].name)} at tier ${x.t.tier} for ${x.steps} turn${x.steps === 1 ? "" : "s"} without a change.`),
+    ...r.lingering.map(x => `${esc(threatName(x.t))} has sat in ${esc(R[x.t.region].name)} at tier ${x.t.tier} for ${x.steps} year${x.steps === 1 ? "" : "s"} without a change.`),
     ...r.hot.map(x => `${esc(R[x.id].name)} ended the year ${DANGER[x.d.auto].name}.`),
   ];
   html += `<div><h5>Needs a look</h5>${looks.length ? `<div class="warns">${looks.map(t => `<div>${t}</div>`).join("")}</div>` : `<div class="muted small">Nothing stands out.</div>`}</div>`;

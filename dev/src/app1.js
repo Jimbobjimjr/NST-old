@@ -237,7 +237,7 @@ function allTurnKeys() {
 function openTurnKey() { const k = allTurnKeys(); return k.length ? k[k.length - 1] : 0; }
 const turnNo = key => allTurnKeys().indexOf(+key) + 1;
 const turnLabel = key => S.settings.turns?.labels?.[key] || "";
-const turnName = key => `Turn ${turnNo(key)}${turnLabel(key) ? " · " + turnLabel(key) : ""}`;
+const turnName = key => `Year ${turnNo(key)}${turnLabel(key) ? " · " + turnLabel(key) : ""}`;
 let TURNS = [];
 function turnIndexOf(i) { const t = TURNS.findIndex(x => i >= x.first && i <= x.last); return t < 0 ? TURNS.length - 1 : t; }
 const curTurn = () => TURNS[turnIndexOf(S.idx)];
