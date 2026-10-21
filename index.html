@@ -372,6 +372,8 @@ body.fs-on { overflow: hidden; }
 .aheadbox { display: flex; flex-direction: column; gap: 6px; }
 .aheadbox button { text-align: left; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); padding: 7px 10px; display: flex; flex-direction: column; gap: 1px; }
 .aheadbox button:hover { border-color: var(--accent); }
+.calrow.past { opacity: .6; }
+.calmonth { display: flex; flex-direction: column; gap: 6px; }
 </style>
 </head>
 <body>
@@ -1245,7 +1247,10 @@ function renderDispatches() {
 function renderCalendar() {
   const pane = $("pane-calendar"), mine = writableChapters(), story = storyLayer();
   const link = safeLink(S.settings.calendar?.url);
-  let html = `<div><h3>Coming up</h3><p class="small muted" style="margin:6px 0 0">Each chapter's next events. The date shows on its town on the map.</p></div>`;
+  const thisYear = new Date().getFullYear(), years = [...new Set([thisYear, ...S.calendar.map(c => +c.date.slice(0, 4))])].filter(Boolean).sort();
+  if (!years.includes(S.calYear)) S.calYear = thisYear;
+  let html = `<div><h3>The year's events</h3><p class="small muted" style="margin:6px 0 0">Every chapter's events for the year, month by month. Each town's next event also shows on the map.</p></div>
+    ${years.length > 1 ? `<div class="field"><label class="lbl" for="cl-year">Year</label><select id="cl-year">${years.map(y => opt(y, y, S.calYear)).join("")}</select></div>` : ""}`;
   if (link) html += `<div class="btnrow"><a class="btn big" href="${esc(link)}" target="_blank" rel="noopener">Open the full Swordcraft calendar ↗</a></div>`;
   if (story) {
     const cl = calendarClashes();
@@ -1264,14 +1269,16 @@ function renderCalendar() {
       <div class="field"><label class="lbl" for="cl-plan">What's planned</label><textarea id="cl-plan" placeholder="A line or two for neighbouring story teams">${esc(f.plan)}</textarea></div>
       <div class="btnrow"><button type="button" class="btn primary" id="cl-save">${f.id ? "Save changes" : "Add to the calendar"}</button><button type="button" class="btn big" id="cl-cancel">Discard</button></div></div>`;
   } else if (mine.length) html += `<div class="btnrow"><button type="button" class="btn primary" id="cl-new">Add an event</button></div>`;
-  const row = c => `<div class="calrow"><div class="caldate"><b>${parseDay(c.date).getDate()}</b><span>${MONTHS[parseDay(c.date).getMonth()]}</span></div><div style="min-width:0">
+  const row = c => `<div class="calrow${c.date < todayStr() ? " past" : ""}"><div class="caldate"><b>${parseDay(c.date).getDate()}</b><span>${MONTHS[parseDay(c.date).getMonth()]}</span></div><div style="min-width:0">
     <div class="tt">${safeLink(c.link) ? `<a href="${esc(safeLink(c.link))}" target="_blank" rel="noopener">${esc(c.name)}</a>` : esc(c.name)}</div>
     <div class="mm"><span>${esc(longDate(c.date))}</span>${R[c.chapter] ? `<button type="button" class="chip" data-goreg="${c.chapter}">${esc(chName(c.chapter))}</button>` : `<span>${esc(chName(c.chapter))}</span>`}</div>
     ${story && (c.plan || c.evil) ? `<div class="small calplan">${c.evil ? `<span class="pill">${esc(threatLabel(c.evil))}</span> ` : ""}${esc(c.plan || "")}</div>` : ""}</div>
     <div class="acts">${canWriteFor(c.chapter) ? (S.confirmDel === c.id ? `<button type="button" class="btn danger" data-cldelok="${c.id}">Delete</button><button type="button" data-delno="1">Keep</button>` : `<button type="button" data-cledit="${c.id}">Edit</button><button type="button" data-cldel="${c.id}" aria-label="Delete calendar event">✕</button>`) : ""}</div></div>`;
-  const up = upcoming(), past = S.calendar.filter(c => c.date < todayStr()).sort((a, b) => b.date.localeCompare(a.date));
-  html += up.length ? `<div class="callist">${up.map(row).join("")}</div>` : `<div class="empty">No events on the calendar yet.${mine.length ? " Add your chapter's next event so it shows on the map." : ""}</div>`;
-  if (past.length) html += `<details class="setup"><summary>Past events (${past.length})</summary><div class="callist">${past.slice(0, 30).map(row).join("")}</div></details>`;
+  const inYear = S.calendar.filter(c => c.date.startsWith(S.calYear + "-")).sort((a, b) => a.date.localeCompare(b.date) || chName(a.chapter).localeCompare(chName(b.chapter)));
+  html += inYear.length ? MONTHS.map((m, i) => {
+    const list = inYear.filter(c => +c.date.slice(5, 7) === i + 1);
+    return list.length ? `<div class="calmonth"><h5>${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][i]} ${S.calYear}</h5><div class="callist">${list.map(row).join("")}</div></div>` : "";
+  }).join("") : `<div class="empty">No events on the calendar for ${S.calYear} yet.${mine.length ? " Add your chapter's events so they show here and on the map." : ""}</div>`;
   if (isNST()) html += `<details class="setup"><summary>Calendar link</summary><label class="lbl" for="cl-url">Link to the full Swordcraft calendar</label><input id="cl-url" value="${esc(S.settings.calendar?.url || "")}" placeholder="https://…"><div class="btnrow"><button type="button" class="btn" id="cl-url-save">Save link</button></div></details>`;
   pane.innerHTML = html;
 }
@@ -1453,6 +1460,7 @@ document.addEventListener("change", e => {
   if (t.id === "cl-ch" && S.calForm) { S.calForm.chapter = t.value; return; }
   if (t.id === "cl-evil" && S.calForm) { S.calForm.evil = t.value; return; }
   if (t.id === "dp-filter") { S.dispFilter = t.value; renderSide(); return; }
+  if (t.id === "cl-year") { S.calYear = +t.value; renderSide(); return; }
   if (t.id === "rc-year") { S.recapYear = +t.value; renderSide(); return; }
   if (t.dataset.rqaff && S.reqForm) { const a = new Set(S.reqForm.affects); t.checked ? a.add(t.dataset.rqaff) : a.delete(t.dataset.rqaff); S.reqForm.affects = [...a]; return; }
   if (t.id === "rq-ch" && S.reqForm) { S.reqForm.chapter = t.value; S.reqForm.text = valOf("rq-text"); renderSide(); return; }

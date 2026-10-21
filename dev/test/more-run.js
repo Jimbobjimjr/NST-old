@@ -88,6 +88,8 @@ const short = s => { const [y, m, d] = s.split('-').map(Number); return `${d} ${
   await tab(p, 'calendar');
   const cal = await text(p, '#pane-calendar');
   check(/The Thorn Moot/.test(cal) && /Swamp Watch/.test(cal), 'the calendar lists upcoming events');
+  if (day(-40).slice(0, 4) === String(new Date().getFullYear())) check(/Sudenburg Spring Muster/.test(cal) && await p.locator('.calrow.past').count() === 1, 'the calendar shows the whole year, past events included');
+  check(/(January|February|March|April|May|June|July|August|September|October|November|December) \d{4}/.test(cal), 'the calendar is grouped by month');
   check(!/Wildwrought raid/.test(cal) && !/Heads-up/.test(cal), 'players see no plans or clash warnings');
   await p.click('.citygrp[data-region="bracken"]', { force: true }).catch(() => {});
   check(p.errs.length === 0, 'no page errors for players', p.errs);

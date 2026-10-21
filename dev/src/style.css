@@ -358,3 +358,5 @@ body.fs-on { overflow: hidden; }
 .aheadbox { display: flex; flex-direction: column; gap: 6px; }
 .aheadbox button { text-align: left; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); padding: 7px 10px; display: flex; flex-direction: column; gap: 1px; }
 .aheadbox button:hover { border-color: var(--accent); }
+.calrow.past { opacity: .6; }
+.calmonth { display: flex; flex-direction: column; gap: 6px; }
