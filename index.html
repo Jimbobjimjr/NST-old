@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Abandoned Lands War Map</title>
+<title>Abandoned Lands Story Map</title>
 <meta name="description" content="A living map of the External Evils and Lesser Evils across the Swordcraft Abandoned Lands.">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +19,7 @@
   --land: #e9dfc2; --land-hi: #ddd8c8; --land-trop: #d9e0bb; --land-wild: #cdbf9c; --sea: #a8c0c2; --sea-deep: #93b1b5;
   --coast: #5b5140; --road: #8a6a3e; --river: #5f8fa0; --mount: #6f6656; --forest: #5d7348; --label: #2a241a; --label-halo: #f1e8cf;
   --pale: #5c7d27; --drowned: #136e8e; --gor: #ad261c; --wild: #95561a; --tok-ink: #ffffff; --lesser: #6a3d8f; --other: #4b545c; --mark: #0f6f86;
-  --ok: #2f7a45; --warn: #b07a12; --bad: #b3261e; --fallen: #2b2622;
+  --ok: #2f7a45; --uneasy: #7d8c2a; --warn: #b07a12; --peril: #c4561c; --bad: #b3261e; --fallen: #2b2622;
   --f-display: "IM Fell English SC", "IM Fell English", Georgia, serif;
   --f-fell: "IM Fell English", Georgia, serif;
   --f-body: "Alegreya Sans", "Gill Sans", "Segoe UI", system-ui, sans-serif;
@@ -31,7 +31,7 @@
   --land: #3b3426; --land-hi: #36342c; --land-trop: #303624; --land-wild: #2c271c; --sea: #18282d; --sea-deep: #122025;
   --coast: #b39d6e; --road: #a2824d; --river: #4f8ba1; --mount: #a39778; --forest: #7d9661; --label: #efe5c8; --label-halo: #2a251b;
   --pale: #9cc35a; --drowned: #4fb0d1; --gor: #e5584b; --wild: #d8954a; --tok-ink: #10140f; --lesser: #bf9ae2; --other: #b3bec7; --mark: #5fc4dc;
-  --ok: #6cc489; --warn: #e2b04a; --bad: #ef6a5e; --fallen: #0b0a09; --art-filter: brightness(.82) saturate(.9);
+  --ok: #6cc489; --uneasy: #b9c75a; --warn: #e2b04a; --peril: #ef8a4a; --bad: #ef6a5e; --fallen: #0b0a09; --art-filter: brightness(.82) saturate(.9);
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #121618; --panel: #1b2124; --panel-2: #232b2e; --ink: #e8e4d8; --muted: #9ba39e; --line: #313a3d;
@@ -39,7 +39,7 @@
   --land: #3b3426; --land-hi: #36342c; --land-trop: #303624; --land-wild: #2c271c; --sea: #18282d; --sea-deep: #122025;
   --coast: #b39d6e; --road: #a2824d; --river: #4f8ba1; --mount: #a39778; --forest: #7d9661; --label: #efe5c8; --label-halo: #2a251b;
   --pale: #9cc35a; --drowned: #4fb0d1; --gor: #e5584b; --wild: #d8954a; --tok-ink: #10140f; --lesser: #bf9ae2; --other: #b3bec7; --mark: #5fc4dc;
-  --ok: #6cc489; --warn: #e2b04a; --bad: #ef6a5e; --fallen: #0b0a09; --art-filter: brightness(.82) saturate(.9);
+  --ok: #6cc489; --uneasy: #b9c75a; --warn: #e2b04a; --peril: #ef8a4a; --bad: #ef6a5e; --fallen: #0b0a09; --art-filter: brightness(.82) saturate(.9);
   color-scheme: dark; }
 
 * { box-sizing: border-box; }
@@ -310,13 +310,32 @@ body.embed .fullmap { display: inline-flex; align-items: center; text-decoration
 body.fs-on { overflow: hidden; }
 .map-ctrl button svg { display: block; margin: auto; }
 .map-ctrl button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+/* Danger level */
+.city-ring.dz { stroke-width: 6; stroke-opacity: 1; }
+.pill.danger { background: var(--dc); color: var(--panel); border-color: transparent; }
+.dgauge { display: flex; gap: 3px; margin: 6px 0 4px; }
+.dgauge span { flex: 1; height: 10px; border-radius: 2px; }
+.dname { font-size: 18px; font-weight: 600; }
+.dkey { display: inline-flex; gap: 2px; vertical-align: middle; }
+.dkey i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.nowbox { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; }
+.dset { margin-top: 10px; font-size: 14px; }
+.dset summary { cursor: pointer; color: var(--accent); }
+.dset input, .dset select { width: 100%; margin-bottom: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 5px 7px; }
+/* Right now */
+.overview { display: flex; flex-direction: column; gap: 6px; }
+.ovrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; text-align: left; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; }
+.ovrow:hover { border-color: var(--accent); }
+.ovname { font-weight: 600; margin-right: auto; }
+.ovline { flex-basis: 100%; }
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <header class="top">
     <div class="brand">
-      <h1>The Abandoned Lands War Map</h1>
+      <h1>The Abandoned Lands Story Map</h1>
       <p id="subhead">Four External Evils and the Lesser Evils, tracked across the Chapter Network. <b id="sub-step"></b></p>
     </div>
     <div class="head-tools">
@@ -341,6 +360,7 @@ body.fs-on { overflow: hidden; }
       <label><input type="checkbox" id="ly-trails" checked> Past movements</label>
       <label><input type="checkbox" id="ly-threats" checked> Lesser evils and other threats</label>
       <label><input type="checkbox" id="ly-marks" checked> Pinpoints</label>
+      <label><input type="checkbox" id="ly-danger" checked> Danger level on towns</label>
       <label><input type="checkbox" id="ly-names"> Extra name labels</label>
       <label><input type="checkbox" id="ly-tint" checked> Threat shading on regions</label>
       <label><input type="checkbox" id="ly-borders" checked> Region borders</label>
@@ -398,10 +418,12 @@ body.fs-on { overflow: hidden; }
       <button type="button" role="tab" id="tab-threats" aria-selected="true" data-tab="threats">Threats</button>
       <button type="button" role="tab" id="tab-region" aria-selected="false" data-tab="region">Region</button>
       <button type="button" role="tab" id="tab-log" aria-selected="false" data-tab="log">Story log</button>
+      <button type="button" role="tab" id="tab-overview" aria-selected="false" data-tab="overview">Right now</button>
     </div>
     <div class="pane" id="pane-threats" role="tabpanel" aria-labelledby="tab-threats"></div>
     <div class="pane" id="pane-region" role="tabpanel" aria-labelledby="tab-region" hidden></div>
     <div class="pane" id="pane-log" role="tabpanel" aria-labelledby="tab-log" hidden></div>
+    <div class="pane" id="pane-overview" role="tabpanel" aria-labelledby="tab-overview" hidden></div>
   </aside>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -571,7 +593,7 @@ const S = {
   tab: "threats", downloads: null,
   positions: {}, layoutMode: false, draft: null, playing: false, confirmDel: null,
   vb: { x: 0, y: 0, w: W, h: H },
-  settings: { notice: { text: NOTICE_TEXT, done: [] }, regions: {} }, placing: null,
+  settings: { notice: { text: NOTICE_TEXT, done: [] }, regions: {}, danger: {} }, placing: null,
 };
 const Store = { mode: "local", me: { role: "viewer", name: "", chapters: [] } };
 try { const l = localStorage.getItem("alwm.layer"); if (l && VIS_RANK[l] !== undefined) S.layer = l; } catch (e) {}
@@ -725,6 +747,41 @@ function lastChange(test) {
   if (S.draft && S.draft.changes.some(test)) return { title: S.draft.title || "your draft", when: "" };
   for (let i = upto; i >= 0; i--) if (EV[i] && (EV[i].changes || []).some(test)) return EV[i];
   return null;
+}
+
+/* Danger: worked out from the threats and the condition at the step on screen. The NST can set a region's level by hand. */
+const DANGER = [
+  { name: "Calm", color: "var(--ok)", feel: "Roads are open and markets are busy. People sleep easy." },
+  { name: "Uneasy", color: "var(--uneasy)", feel: "Odd tales on the roads. Travellers keep together and watch the treeline." },
+  { name: "Dangerous", color: "var(--warn)", feel: "Travel needs an escort. Prices are rising and outlying farms are emptying." },
+  { name: "Perilous", color: "var(--peril)", feel: "Travel is unsafe after dark. Supplies run short and the wardens are calling for help." },
+  { name: "Dire", color: "var(--bad)", feel: "The region is fighting to survive. Few roads in or out are safe." },
+];
+function dangerOf(st, id) {
+  const here = st[id], why = [];
+  let top = 0;
+  for (const k of EVIL_ORDER) if (here.p[k]) { top = Math.max(top, here.p[k]); why.push(`${EVILS[k].short} at tier ${here.p[k]}`); }
+  for (const t of Object.values(here.threats)) { top = Math.max(top, t.tier); why.push(`${threatName(t)} at tier ${t.tier}`); }
+  let lv = Math.min(4, top);
+  if (why.length >= 3 && lv < 4) { lv++; why.push(`${why.length} threats at once`); }
+  if (here.status === "threatened") { lv = Math.max(lv, 1); why.push("region threatened"); }
+  if (here.status === "besieged") { lv = Math.min(4, Math.max(lv + 1, 2)); why.push("region besieged"); }
+  if (here.status === "fallen") { lv = 4; why.push("region fallen"); }
+  if (here.status === "liberated" && lv > 0) { lv--; why.push("recently liberated"); }
+  // A level set by the NST describes the story now, so it only applies at the latest step.
+  const o = S.settings.danger?.[id], latest = !(S.draft && S.draft.changes.length) && S.idx >= EV.length - 1;
+  if (o && DANGER[o.level] && latest) return { lv: +o.level, why: [o.why || "Set by the NST"], feel: o.feel || DANGER[o.level].feel, set: true, auto: lv };
+  return { lv, why, feel: DANGER[lv].feel, set: false, auto: lv };
+}
+const dangerShown = () => $("ly-danger").checked;
+function dangerPill(d) { return `<span class="pill danger" style="--dc:${DANGER[d.lv].color}">${DANGER[d.lv].name}</span>`; }
+function dangerGauge(lv) { return `<div class="dgauge" aria-hidden="true">${DANGER.map((x, i) => `<span style="background:${x.color};opacity:${i <= lv ? 1 : .2}"></span>`).join("")}</div>`; }
+function paintDanger(st) {
+  G.cities.querySelectorAll(".citygrp").forEach(g => {
+    const ring = g.querySelector(".city-ring"); if (!ring) return;
+    if (dangerShown()) { const d = dangerOf(st, g.dataset.region); ring.style.stroke = DANGER[d.lv].color; ring.classList.add("dz"); }
+    else { ring.style.stroke = ""; ring.classList.remove("dz"); }
+  });
 }
 
 /* ---------- Map geometry, traced from Shani Downing's map of the Abandoned Lands ---------- */
@@ -884,6 +941,7 @@ function drawCities() {
 }
 function drawOverlays(opts = {}) {
   const st = currentState();
+  paintDanger(st);
   const ev = currentEvent();
   const prev = prevForView();
   const fresh = opts.fresh !== false;
@@ -1068,7 +1126,8 @@ function regionTip(id) {
   const status = here.status ? ` <span class="pill st-${here.status}">${STATUSES[here.status]}</span>` : "";
   const marks = Object.values(here.marks);
   const note = S.notes[id]?.public;
-  return `<h4>${esc(r.name)}</h4><div class="sub">${esc(r.kind === "chapter" ? "Chapter · " + r.band : r.band)}${status}</div><div>${esc(note || r.blurb)}</div><div class="pres">${presenceList(st, id)}${marks.map(m => `<div style="display:flex;gap:6px;align-items:center">${pinSwatch(m, 14)}<span>${esc(markName(m))}</span></div>`).join("")}</div>${here.note ? `<div class="muted small" style="margin-top:6px">${esc(here.note)}</div>` : ""}<div class="muted small" style="margin-top:6px">Click for the record. Double-click to zoom into the region.</div>`;
+  const danger = r.kind === "chapter" ? " " + dangerPill(dangerOf(st, id)) : "";
+  return `<h4>${esc(r.name)}</h4><div class="sub">${esc(r.kind === "chapter" ? "Chapter · " + r.band : r.band)}${status}${danger}</div><div>${esc(note || r.blurb)}</div><div class="pres">${presenceList(st, id)}${marks.map(m => `<div style="display:flex;gap:6px;align-items:center">${pinSwatch(m, 14)}<span>${esc(markName(m))}</span></div>`).join("")}</div>${here.note ? `<div class="muted small" style="margin-top:6px">${esc(here.note)}</div>` : ""}<div class="muted small" style="margin-top:6px">Click for the record. Double-click to zoom into the region.</div>`;
 }
 function sinceLine(ev) { return ev ? `<div class="muted small since">Last change: ${esc(ev.title || "Untitled event")}${ev.when ? " · " + esc(ev.when) : ""}</div>` : ""; }
 function tokenTip(evil, id, site) {
@@ -1458,16 +1517,41 @@ function renderLegend() {
     `<div class="row">${pinSwatch({ icon: "star" }, 15)} Pinpoint</div>` +
     `<div class="row"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><defs><pattern id="lg-siege" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--bad)" fill-opacity=".15"/><line x1="0" y1="0" x2="0" y2="5" stroke="var(--bad)" stroke-width="2"/></pattern></defs><rect x="1" y="1" width="14" height="14" rx="2" fill="url(#lg-siege)" stroke="var(--bad)" stroke-width="1.5"/></svg> Besieged</div>` +
     `<div class="row"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="14" height="14" rx="2" class="blackout"/></svg> Fallen</div>` +
+    `<div class="row" style="grid-column:1/-1"><span class="dkey">${DANGER.map(x => `<i style="background:${x.color}"></i>`).join("")}</span> Danger: calm to dire</div>` +
     `<div class="row muted" style="grid-column:1/-1">Numbers are Power Scale tiers. Double-click a region to zoom in.</div>`;
 }
 
 /* ---------- Side panel ---------- */
 function renderSide() {
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)));
-  ["threats", "region", "log"].forEach(t => $("pane-" + t).hidden = t !== S.tab);
+  ["threats", "region", "log", "overview"].forEach(t => $("pane-" + t).hidden = t !== S.tab);
   if (S.tab === "threats") renderThreats();
   if (S.tab === "region") renderRegion();
   if (S.tab === "log") renderLog();
+  if (S.tab === "overview") renderOverview();
+}
+/* Events up to the step on screen that touch a region, newest first. */
+function eventsTouching(id) {
+  const upto = S.draft && S.draft.changes.length ? EV.length - 1 : S.idx, out = [];
+  for (let i = upto; i >= 0; i--) {
+    const e = EV[i]; if (!e) continue;
+    if ((e.changes || []).some(c => c.region === id || c.from === id || c.to === id) || e.chapter === id) out.push(i);
+  }
+  return out;
+}
+/* "Right now": one line per chapter, built from what is on the map at this step. */
+function renderOverview() {
+  const st = currentState();
+  const rows = CHAPTERS.map(r => {
+    const here = st[r.id], d = dangerOf(st, r.id);
+    const top = [...EVIL_ORDER.filter(k => here.p[k]).map(k => ({ n: EVILS[k].short, t: here.p[k] })), ...Object.values(here.threats).map(t => ({ n: threatName(t), t: t.tier }))].sort((a, b) => b.t - a.t);
+    const last = eventsTouching(r.id)[0];
+    return { r, d, here, top, last };
+  }).sort((a, b) => b.d.lv - a.d.lv || a.r.name.localeCompare(b.r.name));
+  $("pane-overview").innerHTML = `<div><h3>The Abandoned Lands right now</h3><p class="small muted" style="margin:6px 0 0">Every chapter at this step of the story, most dangerous first. Click one for its full summary.</p></div>
+    <div class="overview">${rows.map(({ r, d, here, top, last }) => `<button type="button" class="ovrow" data-goreg="${r.id}">
+      <span class="ovname">${esc(r.name)}</span>${dangerPill(d)}${here.status ? `<span class="pill st-${here.status}">${STATUSES[here.status]}</span>` : ""}
+      <span class="small muted ovline">${top.length ? esc(top.slice(0, 2).map(x => `${x.n} ${x.t}`).join(" · ")) : "No threats"}${last != null ? ` · Last: ${esc(EV[last].title || "Untitled event")}` : ""}</span></button>`).join("")}</div>`;
 }
 function strength(st, k) { let s = 0, regs = []; for (const id in st) if (st[id].p[k]) { s += st[id].p[k]; regs.push(id); } return { s, regs }; }
 function renderThreats() {
@@ -1519,6 +1603,7 @@ function renderRegion() {
     <p style="margin:8px 0 0">${esc(r.blurb)}</p></div>
     <div class="btnrow">${inView ? `<button type="button" class="btn primary" data-closereg="1">← Back to the whole map</button>` : `<button type="button" class="btn primary" data-openreg="${r.id}">Zoom into ${esc(r.name)}</button>`}
     ${inView && regionEdit ? `<button type="button" class="btn big" id="site-edit" aria-pressed="${S.siteEdit}">${S.siteEdit ? "Done editing sites" : "Edit sites"}</button>` : ""}</div>`;
+  if (r.kind === "chapter") html += nowBox(r, st, here);
   // Pending new site
   if (S.pendingSite && S.pendingSite.region === r.id && regionEdit) {
     html += `<div class="sitebox"><h5>New site</h5><input id="ps-name" placeholder="Name, e.g. Old Mill ford" aria-label="Site name"><input id="ps-note" placeholder="Short description (optional)" aria-label="Site description"><div class="btnrow"><button type="button" class="btn primary" id="ps-save">Add site</button><button type="button" class="btn big" id="ps-cancel">Cancel</button></div></div>`;
@@ -1583,6 +1668,27 @@ function renderRegion() {
   }
   html += `<div><h5>History to this step</h5><div class="hist">${hist.length ? hist.join("") : `<span class="muted small">Nothing has happened here yet.</span>`}</div></div>`;
   pane.innerHTML = html;
+}
+
+/* The region's summary: danger, condition and the latest events, all from canon map entries. */
+function nowBox(r, st, here) {
+  const d = dangerOf(st, r.id);
+  const since = here.status ? lastChange(c => c.type === "status" && c.region === r.id) : null;
+  const recent = eventsTouching(r.id).slice(0, 3);
+  const o = S.settings.danger?.[r.id];
+  let html = `<div class="nowbox"><h5>Right now</h5>${dangerGauge(d.lv)}<div><b class="dname" style="color:${DANGER[d.lv].color}">${DANGER[d.lv].name}</b>${d.set ? ` <span class="small muted">set by the NST</span>` : ""}</div>
+    <p style="margin:4px 0 0">${esc(d.feel)}</p>
+    <div class="small muted" style="margin-top:4px">${d.why.length ? "Why: " + esc(d.why.join(" · ")) : "No threats here."}</div>
+    ${here.status ? `<div class="small" style="margin-top:6px"><span class="pill st-${here.status}">${STATUSES[here.status]}</span>${since ? ` since ${esc(since.title || "an untitled event")}${since.when ? " (" + esc(since.when) + ")" : ""}` : ""}</div>` : ""}
+    <div class="lbl" style="margin-top:8px">Latest events</div>${recent.length ? `<div class="hist">${recent.map(i => `<button type="button" data-jump="${i}"><b>${esc(EV[i].title || "Untitled event")}</b>${EV[i].when ? ` <span class="muted">· ${esc(EV[i].when)}</span>` : ""}</button>`).join("")}</div>` : `<div class="small muted">Nothing has happened here yet.</div>`}`;
+  if (isNST()) {
+    html += `<details class="dset"${o ? " open" : ""}><summary>Set the danger level by hand</summary>
+      <label class="lbl" for="dg-level">Level</label><select id="dg-level" class="btn"><option value="">Work it out from the map (${DANGER[d.auto].name})</option>${DANGER.map((x, i) => `<option value="${i}" ${o && +o.level === i ? "selected" : ""}>${x.name}</option>`).join("")}</select>
+      <label class="lbl" for="dg-why">Why (players see this)</label><input id="dg-why" value="${esc(o?.why || "")}" placeholder="e.g. The thorn wall is failing">
+      <label class="lbl" for="dg-feel">What players feel</label><input id="dg-feel" value="${esc(o?.feel || "")}" placeholder="Leave empty for the usual line">
+      <div class="btnrow"><button type="button" class="btn" id="dg-save">Save danger level</button></div></details>`;
+  }
+  return html + `</div>`;
 }
 
 /* ---------- Draft editing ---------- */
@@ -1857,8 +1963,8 @@ function openPop(kind) {
   if (kind === "share") {
     const u = new URL(location.href); u.search = ""; u.hash = "";
     u.searchParams.set("embed", "1"); if (RV.id) u.searchParams.set("region", RV.id);
-    const code = `<iframe src="${u.toString()}" title="Abandoned Lands War Map" width="100%" height="860" style="border:0;max-width:1500px" loading="lazy" allow="fullscreen" allowfullscreen></iframe>`;
-    pop.innerHTML = `<b>Embed ${RV.id ? "this region" : "the war map"} in a wiki page</b><textarea id="emb-code" readonly>${esc(code)}</textarea><div class="btnrow"><button type="button" class="btn primary" id="emb-copy">Copy code</button><button type="button" class="btn big" id="pop-close">Close</button></div><div class="note">${location.protocol === "file:" ? "This copy is opened from a file. Host the site first, then copy the code from the hosted page." : "Paste it into any wiki or site that accepts iframes. Add &amp;region= with a town's id to open straight onto its map."}</div>`;
+    const code = `<iframe src="${u.toString()}" title="Abandoned Lands Story Map" width="100%" height="860" style="border:0;max-width:1500px" loading="lazy" allow="fullscreen" allowfullscreen></iframe>`;
+    pop.innerHTML = `<b>Embed ${RV.id ? "this region" : "the story map"} in a wiki page</b><textarea id="emb-code" readonly>${esc(code)}</textarea><div class="btnrow"><button type="button" class="btn primary" id="emb-copy">Copy code</button><button type="button" class="btn big" id="pop-close">Close</button></div><div class="note">${location.protocol === "file:" ? "This copy is opened from a file. Host the site first, then copy the code from the hosted page." : "Paste it into any wiki or site that accepts iframes. Add &amp;region= with a town's id to open straight onto its map."}</div>`;
   } else if (kind === "who") {
     const m = Store.me;
     if (Store.mode === "local") {
@@ -1926,6 +2032,12 @@ document.addEventListener("click", async e => {
     const id = S.selected, cur = S.settings.notice || {}, done = new Set(cur.done || []);
     if ($("mn-show").checked) done.delete(id); else done.add(id);
     await saveSetting("notice", { text: $("mn-text").value.trim(), done: [...done] }, "Notice saved"); return;
+  }
+  if (t.id === "dg-save") {
+    const id = S.selected, all = { ...(S.settings.danger || {}) }, v = $("dg-level").value;
+    if (v === "") delete all[id];
+    else { const o = { level: +v }, why = $("dg-why").value.trim(), feel = $("dg-feel").value.trim(); if (why) o.why = why; if (feel) o.feel = feel; all[id] = o; }
+    await saveSetting("danger", all, v === "" ? "Danger level worked out from the map again" : "Danger level saved"); return;
   }
   if (t.id === "ld-save" || t.id === "ld-reset") {
     const id = S.selected, all = { ...(S.settings.regions || {}) };
@@ -2045,7 +2157,7 @@ function refreshAll(fresh) {
   renderMap({ fresh: !!fresh }); renderChrome();
 }
 function setSettings(o) {
-  S.settings = { notice: o.notice || { text: NOTICE_TEXT, done: [] }, regions: o.regions || {} };
+  S.settings = { notice: o.notice || { text: NOTICE_TEXT, done: [] }, regions: o.regions || {}, danger: o.danger || {} };
   applyRegionInfo();
 }
 function applyData(d, first) {

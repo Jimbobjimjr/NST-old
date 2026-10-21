@@ -1,5 +1,5 @@
 /**
- * Abandoned Lands War Map: story sheet backend.
+ * Abandoned Lands Story Map: story sheet backend.
  *
  * Paste this whole file into Extensions > Apps Script on a new Google Sheet,
  * run setup() once, then Deploy > New deployment > Web app
@@ -10,7 +10,7 @@
  *   Sites    places reps add or move on their region maps
  *   Notes    the "current situation" text for each region
  *   Reps     who can edit: code, name, role (story | rep | nst | lead), chapters
- *   Settings map layout, the region map notice, renamed places
+ *   Settings map layout, the region map notice, renamed places, danger levels set by hand
  *   Log      every change, who made it and when
  */
 
@@ -155,6 +155,7 @@ function act(me, b) {
     case 'saveSetting': {
       if (b.key === 'notice') { if (!isNst(me)) throw new Error('Only the NST can change the map notice.'); }
       else if (b.key === 'regions') { if (me.role !== 'lead') throw new Error('Only the NST lead can rename places on the map.'); }
+      else if (b.key === 'danger') { if (!isNst(me)) throw new Error('Only the NST can set a danger level by hand.'); }
       else throw new Error('Unknown setting ' + b.key);
       writeRow('Settings', 'key', { key: b.key, value: JSON.stringify(b.value === undefined ? null : b.value) });
       log(me, 'setting', b.key);
@@ -179,9 +180,10 @@ function load(me) {
     notes[r.region] = { 'public': r['public'] || '', updatedBy: r.updatedBy || '', updatedAt: iso(r.updatedAt) };
     if (rank >= 1) notes[r.region].story = r.story || '';
   });
-  var pos = findRow('Settings', 'key', 'positions'), notice = findRow('Settings', 'key', 'notice'), regions = findRow('Settings', 'key', 'regions');
+  var pos = findRow('Settings', 'key', 'positions'), notice = findRow('Settings', 'key', 'notice'), regions = findRow('Settings', 'key', 'regions'), danger = findRow('Settings', 'key', 'danger');
   var settings = { regions: regions ? safeJSON(regions.value, {}) : {} };
   if (notice) settings.notice = safeJSON(notice.value, null) || undefined;
+  if (danger) settings.danger = safeJSON(danger.value, {});
   return { me: { role: me.role, name: me.name, chapters: me.chapters }, events: events, sites: sites, notes: notes, positions: pos ? safeJSON(pos.value, {}) : {}, settings: settings };
 }
 function viewer() { return { role: 'viewer', name: '', chapters: [] }; }

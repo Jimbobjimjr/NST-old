@@ -9,7 +9,7 @@ head = '''<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Abandoned Lands War Map</title>
+<title>Abandoned Lands Story Map</title>
 <meta name="description" content="A living map of the External Evils and Lesser Evils across the Swordcraft Abandoned Lands.">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
