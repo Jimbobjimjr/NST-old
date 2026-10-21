@@ -286,7 +286,7 @@ function renderRegionView(opts = {}) {
   const loose = EVIL_ORDER.filter(k => here.base[k] && !S.hidden.has(k));
   const looseT = threatShown() ? Object.values(here.threats).filter(t => !t.site || !known.has(t.site)) : [];
   let tray = `<div class="lbl">Across ${esc(r.name)}</div>`;
-  if (!loose.length && !looseT.length && !marks.some(m => !(m.site && siteAt[m.site]) && m.x == null)) tray += `<div class="muted">${Object.keys(here.p).length || Object.keys(here.threats).length ? "Every force here is placed at a site." : "No threats in this region at this step."}</div>`;
+  if (!loose.length && !looseT.length && !marks.some(m => !(m.site && siteAt[m.site]) && m.x == null)) tray += `<div class="muted">${Object.keys(here.p).length || Object.keys(here.threats).length ? "Every force here is placed at a site." : "No threats in this region at this turn."}</div>`;
   tray += loose.map(k => `<div class="row">${swatch(k, 18, here.base[k])}<span>${EVILS[k].short} · ${esc(TIERS[here.base[k]].name)}, region-wide</span></div>`).join("");
   tray += looseT.map(t => `<div class="row">${thrSwatch(t, 18, true)}<span>${esc(threatName(t))}${t.site ? " · at a removed site" : " · region-wide"}</span></div>`).join("");
   tray += marks.filter(m => !(m.site && siteAt[m.site]) && m.x == null).map(m => `<div class="row">${pinSwatch(m, 18)}<span>${esc(markName(m))} · region-wide</span></div>`).join("");
@@ -436,7 +436,7 @@ const TABS = ["threats", "region", "log", "overview", "dispatches", "calendar", 
 function renderSubStep() {
   const n = TURNS.length, ti = turnIndexOf(S.idx);
   const rs = S.selected && R[S.selected]?.kind === "chapter" ? regionSteps(S.selected) : null, rk = rs ? rs.filter(i => i <= S.idx).length : 0;
-  $("sub-step").textContent = n ? (S.draft && S.draft.changes.length ? "Draft preview." : `Turn ${turnNo(TURNS[ti].key)} of ${turnNo(TURNS[n - 1].key)}.${rs && rs.length ? ` ${R[S.selected].name}: step ${rk} of ${rs.length}.` : ""}`) : "";
+  $("sub-step").textContent = n ? (S.draft && S.draft.changes.length ? "Draft preview." : `Turn ${turnNo(TURNS[ti].key)} of ${turnNo(TURNS[n - 1].key)}.${rs && rs.length ? ` ${R[S.selected].name}: beat ${rk} of ${rs.length}.` : ""}`) : "";
 }
 function renderSide() {
   renderSubStep();
@@ -464,12 +464,12 @@ function regionStory(r) {
   const steps = regionSteps(r.id), t = curTurn(), seen = steps.filter(i => i <= S.idx).length;
   if (!steps.length) return `<div><h5>${esc(r.name)}'s story</h5><span class="muted small">Nothing has happened here yet.</span></div>`;
   const prev = steps.filter(i => t && i < t.first).pop(), next = steps.find(i => i > S.idx);
-  return `<div class="rstory"><h5>${esc(r.name)}'s story · step ${seen} of ${steps.length}</h5>
+  return `<div class="rstory"><h5>${esc(r.name)}'s story · beat ${seen} of ${steps.length}</h5>
     <div class="btnrow"><button type="button" class="btn" ${prev != null ? `data-jump="${prev}"` : "disabled"}>◀ Previous here</button><button type="button" class="btn" ${next != null ? `data-jump="${next}"` : "disabled"}>Next here ▶</button></div>
     <div class="hist">${steps.map((i, k) => { const e = EV[i], now = t && i >= t.first && i <= t.last, later = i > S.idx;
       return `<button type="button" data-jump="${i}" class="${now ? "now" : ""}${later ? " later" : ""}"><b>${k + 1}. ${esc(e.title || "Untitled event")}</b><br><span class="muted">${esc(turnName(turnKey(e)))}${e.when ? " · " + esc(e.when) : ""}${later ? " · later in the story" : ""}</span></button>`; }).join("")}</div></div>`;
 }
-/* "Right now": one line per chapter, built from what is on the map at this step. */
+/* "Right now": one line per chapter, built from what is on the map at this turn. */
 function renderOverview() {
   const st = currentState();
   const rows = CHAPTERS.map(r => {
@@ -478,7 +478,7 @@ function renderOverview() {
     const last = eventsTouching(r.id)[0];
     return { r, d, here, top, last };
   }).sort((a, b) => b.d.lv - a.d.lv || a.r.name.localeCompare(b.r.name));
-  $("pane-overview").innerHTML = `<div><h3>The Abandoned Lands right now</h3><p class="small muted" style="margin:6px 0 0">Every chapter at this step of the story, most dangerous first. Click one for its full summary.</p></div>
+  $("pane-overview").innerHTML = `<div><h3>The Abandoned Lands right now</h3><p class="small muted" style="margin:6px 0 0">Every chapter at this turn of the story, most dangerous first. Click one for its full summary.</p></div>
     <div class="overview">${rows.map(({ r, d, here, top, last }) => `<button type="button" class="ovrow" data-goreg="${r.id}">
       <span class="ovname">${esc(r.name)}</span>${dangerPill(d)}${here.status ? `<span class="pill st-${here.status}">${STATUSES[here.status]}</span>` : ""}
       <span class="small muted ovline">${top.length ? esc(top.slice(0, 2).map(x => `${x.n} ${x.t}`).join(" · ")) : "No threats"}${last != null ? ` · Last: ${esc(EV[last].title || "Untitled event")}` : ""}</span></button>`).join("")}</div>`;
@@ -489,7 +489,7 @@ function renderThreats() {
   const maxS = Math.max(8, ...EVIL_ORDER.map(k => strength(st, k).s));
   const pane = $("pane-threats");
   const lesser = allThreats(st).sort((a, b) => b.tier - a.tier);
-  pane.innerHTML = `<div class="note">Strength adds up every tier the evil holds on the map at this step. Toggle an evil to hide it, or focus to dim the rest.</div>` + EVIL_ORDER.map(k => {
+  pane.innerHTML = `<div class="note">Strength adds up every tier the evil holds on the map at this turn. Toggle an evil to hide it, or focus to dim the rest.</div>` + EVIL_ORDER.map(k => {
     const E = EVILS[k], { s, regs } = strength(st, k), ps = strength(prev, k).s, d = s - ps;
     const trend = d > 0 ? `<span class="trend-up">▲ ${d}</span>` : d < 0 ? `<span class="trend-down">▼ ${-d}</span>` : `<span>steady</span>`;
     const on = !S.hidden.has(k);
@@ -498,13 +498,13 @@ function renderThreats() {
       <div class="evil-head">${swatch(k, 26)}<div class="grow"><div class="nm">${E.name}</div><div class="tg">${E.tagline} · “${esc(E.saying)}”</div></div>
         <button type="button" class="eye" data-eye="${k}" aria-pressed="${on}">${on ? "Shown" : "Hidden"}</button></div>
       <div class="meter"><span>Strength ${s}</span><span class="bar"><i style="width:${s / maxS * 100}%;background:var(--${k})"></i></span>${trend}</div>
-      <div class="chips">${regs.length ? regs.map(id => `<button type="button" class="chip" data-goreg="${id}">${esc(R[id].name)} · ${st[id].p[k]}</button>`).join("") : `<span class="muted small">Not on the map at this step.</span>`}</div>
+      <div class="chips">${regs.length ? regs.map(id => `<button type="button" class="chip" data-goreg="${id}">${esc(R[id].name)} · ${st[id].p[k]}</button>`).join("") : `<span class="muted small">Not on the map at this turn.</span>`}</div>
       <details><summary>Dossier</summary><dl style="margin-top:6px">
         <dt>Figurehead</dt><dd>${esc(fig)}</dd><dt>Wants</dt><dd>${esc(E.wants)}</dd><dt>Presses</dt><dd>${esc(E.presses)}</dd>
         <dt>On field</dt><dd>${esc(E.feel)}</dd><dt>Counterplay</dt><dd>${esc(E.counter)}</dd><dt>Defectors</dt><dd>${esc(E.defectors)}</dd></dl></details>
       <div class="btnrow"><button type="button" class="btn" data-focus="${k}" aria-pressed="${S.focus === k}">${S.focus === k ? "Clear focus" : "Focus on map"}</button></div>
     </div>`;
-  }).join("") + `<div><h5>Lesser evils and other threats</h5>${lesser.length ? `<div class="thrlist">${lesser.map(t => `<div class="thrrow">${thrSwatch(t, 20, true)}<div class="t">${esc(threatName(t))}<small>${esc(threatKind(t))}</small></div><button type="button" class="chip" data-goreg="${t.region}">${esc(R[t.region].name)}</button></div>`).join("")}</div>` : `<div class="muted small">None on the map at this step. Reps add them from a region's page or the Story log.</div>`}</div>`;
+  }).join("") + `<div><h5>Lesser evils and other threats</h5>${lesser.length ? `<div class="thrlist">${lesser.map(t => `<div class="thrrow">${thrSwatch(t, 20, true)}<div class="t">${esc(threatName(t))}<small>${esc(threatKind(t))}</small></div><button type="button" class="chip" data-goreg="${t.region}">${esc(R[t.region].name)}</button></div>`).join("")}</div>` : `<div class="muted small">None on the map at this turn. Reps add them from a region's page or the Story log.</div>`}</div>`;
 }
 function tierRow(k, total, own, ctrlAttrs, sub) {
   const ctrl = ctrlAttrs ? `<span class="stepper" role="group" aria-label="${EVILS[k].short} tier"><button type="button" ${ctrlAttrs} data-d="-1" aria-label="Lower tier">−</button><span>${own}</span><button type="button" ${ctrlAttrs} data-d="1" aria-label="Raise tier">+</button></span>` : `<b>${total || "–"}</b>`;
@@ -584,9 +584,9 @@ function renderRegion() {
   }).join("");
   html += `<div><h5>External Evils here</h5>${rows}${editing ? `<div class="btnrow" style="margin-top:8px"><label class="small" for="st-sel">Condition</label><select id="st-sel" class="btn">${["none", ...Object.keys(STATUSES)].map(s => `<option value="${s}" ${(here.status || "none") === s ? "selected" : ""}>${s === "none" ? "Holding (clear)" : STATUSES[s]}</option>`).join("")}</select></div><div class="note">Steppers here set region-wide strength. To place a force at a site, zoom in and click the site. Changes go into a draft event in the Story log; nothing is saved until you add it to the story.</div>` : ""}</div>`;
   const th = Object.values(here.threats).sort((a, b) => b.tier - a.tier);
-  html += `<div><h5>Lesser evils and other threats</h5>${threatRows(th, r.id, editing) || `<div class="muted small">None here at this step.</div>`}${editing ? `<div class="btnrow" style="margin-top:6px"><button type="button" class="btn" data-addthr="">+ Add a lesser evil or threat</button></div>` : ""}</div>`;
+  html += `<div><h5>Lesser evils and other threats</h5>${threatRows(th, r.id, editing) || `<div class="muted small">None here at this turn.</div>`}${editing ? `<div class="btnrow" style="margin-top:6px"><button type="button" class="btn" data-addthr="">+ Add a lesser evil or threat</button></div>` : ""}</div>`;
   const mks = Object.values(here.marks);
-  html += `<div><h5>Pinpoints</h5>${markRows(mks, r.id, editing) || `<div class="muted small">No pinpoints here at this step.</div>`}${editing ? `<div class="btnrow" style="margin-top:6px"><button type="button" class="btn" data-addmark="">+ Pinpoint on the map</button></div><div class="note">Mark story moments, camps, battles or places of interest. Click the region's map to place it.</div>` : ""}</div>`;
+  html += `<div><h5>Pinpoints</h5>${markRows(mks, r.id, editing) || `<div class="muted small">No pinpoints here at this turn.</div>`}${editing ? `<div class="btnrow" style="margin-top:6px"><button type="button" class="btn" data-addmark="">+ Pinpoint on the map</button></div><div class="note">Mark story moments, camps, battles or places of interest. Click the region's map to place it.</div>` : ""}</div>`;
   if (r.gov) html += `<div class="region"><h5>The town</h5><dl><dt>Governance</dt><dd>${esc(r.gov)}</dd><dt>Economy</dt><dd>${esc(r.econ)}</dd><dt>Tensions</dt><dd>${esc(r.tens)}</dd></dl></div>`;
   if (r.orbit && r.orbit.length) html += `<div><h5>Regional orbit</h5><div class="chips">${r.orbit.map(o => `<span class="chip">${esc(o)}</span>`).join("")}</div></div>`;
   html += regionStory(r);
@@ -812,7 +812,7 @@ function renderLog() {
   const chs = [...new Set(EV.map(e => e.chapter).filter(c => R[c]))];
   html += `<div class="field"><label class="lbl" for="log-filter">Whose story</label><select id="log-filter">${opt("", "The whole Abandoned Lands", S.logFilter)}${CHAPTERS.filter(r => chs.includes(r.id) || r.id === S.logFilter).map(r => opt(r.id, r.name, S.logFilter)).join("")}</select></div>`;
   const fsteps = S.logFilter ? regionSteps(S.logFilter) : null;
-  html += `<div class="lbl">${fsteps ? `${esc(R[S.logFilter].name)}'s story · ${fsteps.length} step${fsteps.length === 1 ? "" : "s"}` : `The story so far · ${TURNS.length} turn${TURNS.length === 1 ? "" : "s"}, ${EV.length} entr${EV.length === 1 ? "y" : "ies"}`} visible to ${VIS[S.layer]}</div>`;
+  html += `<div class="lbl">${fsteps ? `${esc(R[S.logFilter].name)}'s story · ${fsteps.length} beat${fsteps.length === 1 ? "" : "s"}` : `The story so far · ${TURNS.length} turn${TURNS.length === 1 ? "" : "s"}, ${EV.length} entr${EV.length === 1 ? "y" : "ies"}`} visible to ${VIS[S.layer]}</div>`;
   const ct = curTurn();
   html += TURNS.map(t => {
     const rows = [];
@@ -829,7 +829,7 @@ function renderLog() {
       <div class="mm"><span>${esc(e.when || "")}</span><span>${esc(ch)}</span><span class="pill vis-${e.visibility || "public"}">${VIS[e.visibility || "public"]}</span>${e.example ? `<span class="pill ex">Example</span>` : ""}${e.updatedBy ? `<span>by ${esc(e.updatedBy)}</span>` : ""}</div></div><div class="acts">${acts}</div></div>`;
   }).join(""); }).join("");
   if (isNST() && !S.usingFallback && S.events.some(e => e.example)) html += `<div class="btnrow"><button type="button" class="btn" id="clear-ex">Remove the example events</button></div>`;
-  if (isNST() && S.usingFallback && S.loaded) html += `<div class="btnrow"><button type="button" class="btn big" id="seed-open">Save the opening positions as step 1</button></div>`;
+  if (isNST() && S.usingFallback && S.loaded) html += `<div class="btnrow"><button type="button" class="btn big" id="seed-open">Save the opening positions as turn 1</button></div>`;
   html += `<details class="setup" ${S.layoutMode ? "open" : ""}><summary>Map setup</summary>
     ${isNST() ? `<div class="btnrow"><button type="button" class="btn big" id="lay-toggle" aria-pressed="${S.layoutMode}">${S.layoutMode ? "Done arranging" : "Arrange places on the map"}</button><button type="button" class="btn" id="lay-reset">Reset positions</button></div>
     <div class="note">Drag towns, fronts and waters to move them. Territories redraw around them and the change is shared.</div>` : `<div class="note">Arranging the main map is for the NST Team. Reps can add and move sites inside their own region's map.</div>`}

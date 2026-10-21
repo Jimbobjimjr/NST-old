@@ -23,12 +23,12 @@ const short = s => { const [y, m, d] = s.split('-').map(Number); return `${d} ${
   const load = code => gas.get(code ? { action: 'load', code } : { action: 'load' });
 
   // Example story (made up, not canon): a quiet 2025, then a busy 2026 in Bracken.
-  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-0', title: 'Smoke on the north road', when: 'Nov 2025', chapter: 'kreigstor', visibility: 'public', order: 1, createdAt: '2025-11-20T00:00:00Z', changes: [{ type: 'set', evil: 'pale', region: 'kreigstor', tier: 1 }] } });
-  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-a', title: 'Thorns and Embers', when: 'Mar 2026', chapter: 'bracken', visibility: 'public', order: 2, createdAt: '2026-03-02T00:00:00Z', changes: [{ type: 'set', evil: 'wild', region: 'bracken', tier: 3 }, { type: 'threat', tid: 'tf', kind: 'lesser', group: 'forsworn', tier: 2, region: 'braylong' }] } });
-  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-b', title: 'The south road burns', when: 'May 2026', chapter: 'bracken', visibility: 'public', order: 3, createdAt: '2026-05-10T00:00:00Z', changes: [{ type: 'status', region: 'bracken', status: 'besieged' }] } });
-  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-c', title: 'Bells at Braylong', when: 'Jun 2026', chapter: 'braylong', visibility: 'public', order: 4, createdAt: '2026-06-10T00:00:00Z', changes: [{ type: 'set', evil: 'pale', region: 'braylong', tier: 2 }] } });
-  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-d', title: 'Quiet watch', when: 'Jul 2026', chapter: 'braylong', visibility: 'public', order: 5, createdAt: '2026-07-10T00:00:00Z', changes: [{ type: 'mark', mid: 'm1', icon: 'pin', region: 'braylong', wide: true }] } });
-  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-e', title: 'Long night', when: 'Aug 2026', chapter: 'braylong', visibility: 'public', order: 6, createdAt: '2026-08-10T00:00:00Z', changes: [{ type: 'mark', mid: 'm2', icon: 'star', region: 'braylong', wide: true }] } });
+  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-0', turn: 1, title: 'Smoke on the north road', when: 'Nov 2025', chapter: 'kreigstor', visibility: 'public', order: 1, createdAt: '2025-11-20T00:00:00Z', changes: [{ type: 'set', evil: 'pale', region: 'kreigstor', tier: 1 }] } });
+  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-a', turn: 2, title: 'Thorns and Embers', when: 'Mar 2026', chapter: 'bracken', visibility: 'public', order: 2, createdAt: '2026-03-02T00:00:00Z', changes: [{ type: 'set', evil: 'wild', region: 'bracken', tier: 3 }, { type: 'threat', tid: 'tf', kind: 'lesser', group: 'forsworn', tier: 2, region: 'braylong' }] } });
+  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-b', turn: 3, title: 'The south road burns', when: 'May 2026', chapter: 'bracken', visibility: 'public', order: 3, createdAt: '2026-05-10T00:00:00Z', changes: [{ type: 'status', region: 'bracken', status: 'besieged' }] } });
+  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-c', turn: 4, title: 'Bells at Braylong', when: 'Jun 2026', chapter: 'braylong', visibility: 'public', order: 4, createdAt: '2026-06-10T00:00:00Z', changes: [{ type: 'set', evil: 'pale', region: 'braylong', tier: 2 }] } });
+  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-d', turn: 5, title: 'Quiet watch', when: 'Jul 2026', chapter: 'braylong', visibility: 'public', order: 5, createdAt: '2026-07-10T00:00:00Z', changes: [{ type: 'mark', mid: 'm1', icon: 'pin', region: 'braylong', wide: true }] } });
+  post({ action: 'saveEvent', code: 'lead-1', event: { id: 'ev-e', turn: 6, title: 'Long night', when: 'Aug 2026', chapter: 'braylong', visibility: 'public', order: 6, createdAt: '2026-08-10T00:00:00Z', changes: [{ type: 'mark', mid: 'm2', icon: 'star', region: 'braylong', wide: true }] } });
 
   // Permissions in the story sheet
   check(post({ action: 'saveDispatch', code: 'story-b', item: { chapter: 'bracken', title: 'Smoke over the thorn wall', when: 'After the May event', body: 'Travellers say the south road is ash.\n\nThe Reeve asks for help.' } }).ok, 'a story team writes a dispatch for its own chapter');
@@ -133,7 +133,7 @@ const short = s => { const [y, m, d] = s.split('-').map(Number); return `${d} ${
   check(/5\s*events posted/.test(rc), 'recap counts the year\'s events', rc.match(/\d+\s*events posted/)?.[0]);
   check(/Besieged: Bracken/.test(rc), 'recap lists besieged regions');
   check(/No events in 2026 from Ritterstein, /.test(rc), 'recap flags quiet chapters');
-  check(/Forsworn has sat in Braylong at tier 2 for 4 steps/.test(rc), 'recap flags a Lesser Evil left alone', rc.match(/Forsworn[^.]*/)?.[0]);
+  check(/Forsworn has sat in Braylong at tier 2 for 4 turns/.test(rc), 'recap flags a Lesser Evil left alone', rc.match(/Forsworn[^.]*/)?.[0]);
   check(/Thorns and Embers/.test(await text(p, '#pane-recap .hist')), 'recap lists the biggest moments');
   await p.locator('#pane-recap').screenshot({ path: OUT + 'm6-recap.png' });
   await p.selectOption('#rc-year', '2025'); await sleep(300);

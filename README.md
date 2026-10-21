@@ -79,7 +79,7 @@ Reps can sign in from inside the embed too.
 - **Requests** let a chapter ask before a story crosses into another chapter. Only the chapters involved and the NST Team see a request, and they can comment on it; only the NST Lead can approve, approve with changes, or decline it. Players never see requests.
 - The **Yearly recap** (NST Team only, when viewing as NST) sums up a year from the map: events posted, threats risen and beaten back, regions besieged, fallen or liberated, entries and dispatches by chapter, the biggest moments, and what needs a look (chapters with no events, Lesser Evils left alone for three or more steps, regions that ended the year Perilous or Dire). Events count towards the year they were saved in.
 - The story moves in **turns**. The NST Team opens each turn (for example "November 2026") from the top of the **Story log**, and every entry posted until the next turn goes into it, so several chapters' events can happen in the same turn. The count at the top of the map and the timeline step through turns, not single entries. Reps always post into the current turn; the NST Team can move an entry to another turn when editing it. Entries saved before turns existed are each their own turn.
-- Each region also has **its own story**: a town's page lists every entry that touched it (step 3 of 5, and so on) with buttons to step through them, and **Whose story** in the Story log shows one chapter's entries on their own.
+- Each region also has **its own story**: a town's page lists every entry that touched it (beat 3 of 5, and so on) with buttons to go through them, and **Whose story** in the Story log shows one chapter's entries on their own.
 - Each region map shows a notice while it's being updated. The NST Team can change its wording, or switch it off for a map that's finished, from the region's page.
 - Click a site to see what's there. Reps use the steppers to place an External Evil at that site, and **+ Lesser evil or threat here** to add one.
 - **Edit sites** (reps, in their own region): click empty ground to add a site, drag a site to move it, rename or hide the built-in ones.
@@ -87,7 +87,7 @@ Reps can sign in from inside the embed too.
 
 ## Data format
 
-Each row in **Events** is one step of the story. Its `changes` column holds a JSON list. Every map layer uses the same shape, so new layers can be added later without changing old events.
+Each row in **Events** is one entry in the story. Its `changes` column holds a JSON list. Every map layer uses the same shape, so new layers can be added later without changing old events.
 
 ```json
 { "type": "set",    "evil": "pale", "region": "braylong", "site": "braylong-velaris", "tier": 2 }

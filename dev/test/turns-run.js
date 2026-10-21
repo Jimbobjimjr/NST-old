@@ -73,18 +73,18 @@ const check = (ok, what, extra) => { if (!ok) fails++; console.log((ok ? 'ok   '
   await p.click('#tl-next'); await sleep(900);
   // Bracken's own story
   await p.click('#zfit'); const bx = await p.locator('.citygrp[data-region="bracken"]').boundingBox(); await p.mouse.click(bx.x + bx.width / 2, bx.y + bx.height / 2); await sleep(500);
-  check(/Bracken: step 2 of 2/.test(await sub(p)), 'the header shows Bracken\'s own step', await sub(p));
+  check(/Bracken: beat 2 of 2/.test(await sub(p)), 'the header shows Bracken\'s own step', await sub(p));
   const rs = await p.locator('.rstory').textContent();
-  check(/Bracken's story · step 2 of 2/.test(rs) && /Thorns and Embers/.test(rs) && /The thorn wall holds/.test(rs) && !/Bells at Braylong/.test(rs), 'the region page lists only Bracken\'s steps', rs.slice(0, 120));
+  check(/Bracken's story · beat 2 of 2/.test(rs) && /Thorns and Embers/.test(rs) && /The thorn wall holds/.test(rs) && !/Bells at Braylong/.test(rs), 'the region page lists only Bracken\'s steps', rs.slice(0, 120));
   await p.locator('.rstory').screenshot({ path: OUT + 't2-region-story.png' });
   await p.click('.rstory button:has-text("Previous here")'); await sleep(800);
-  check(/Bracken's story · step 1 of 2/.test(await p.locator('.rstory').textContent()) && /^Turn 2 of 4/.test(await sub(p)), 'Previous here jumps to Bracken\'s last step', await sub(p));
+  check(/Bracken's story · beat 1 of 2/.test(await p.locator('.rstory').textContent()) && /^Turn 2 of 4/.test(await sub(p)), 'Previous here jumps to Bracken\'s last step', await sub(p));
   // Story log, filtered to one chapter
   await p.click('#tab-log'); await sleep(300);
   check(await p.locator('.turnhead').count() === 4, 'the story log is grouped by turn');
   await p.selectOption('#log-filter', 'braylong'); await sleep(300);
   const lg = await p.locator('#pane-log').textContent();
-  check(/Braylong's story · 2 steps/.test(lg) && !/Thorns and Embers/.test(lg), 'Whose story shows one chapter on its own');
+  check(/Braylong's story · 2 beats/.test(lg) && !/Thorns and Embers/.test(lg), 'Whose story shows one chapter on its own');
   await p.locator('#pane-log').screenshot({ path: OUT + 't3-log-braylong.png' });
   check(p.errs.length === 0, 'no page errors', p.errs);
   await p.close();
