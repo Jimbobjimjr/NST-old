@@ -802,7 +802,7 @@ function renderLog() {
         <div class="btnrow"><button type="button" class="btn primary" id="d-save" ${dr.title.trim() && !blocked ? "" : "disabled"}>${dr.id ? "Save changes" : "Add to the story"}</button><button type="button" class="btn big" id="d-cancel">Discard</button></div></div>`;
     }
   } else {
-    html += `<div class="note">${Store.mode === "sheets" ? "Chapter NST Reps can sign in with their rep code to record events." : Store.mode === "claude" ? "You can view the story. Ask the map's owner for edit access to record events." : "This copy isn't connected to the shared story sheet yet."}</div>`;
+    html += `<div class="note">${Store.mode === "sheets" ? "Chapter NST Reps can sign in with their rep code to record events." : "This copy isn't connected to the shared story sheet yet."}</div>`;
   }
   const ok = openTurnKey();
   html += `<div class="turnbox"><div><span class="lbl">Current year</span><br><b>${esc(turnName(ok))}</b></div>
@@ -896,7 +896,7 @@ async function saveSite(patch) {
 function renderWho() {
   const b = $("who-btn"), m = Store.me;
   $("share-btn").hidden = !isLead(); // Only the NST Lead hands out embed code.
-  b.hidden = Store.mode === "claude" || EMBED && Store.mode !== "sheets";
+  b.hidden = EMBED && Store.mode !== "sheets";
   if (Store.mode === "local") b.textContent = m.role === "viewer" ? "Try editing" : "Stop demo";
   else b.textContent = m.role === "viewer" ? "Rep sign in" : (m.name || ROLES[m.role].name);
   const full = new URL(location.href); full.searchParams.delete("embed");
@@ -1132,31 +1132,7 @@ function applyData(d, first) {
   refreshAll(!!first);
 }
 
-/* ---------- Storage: claude.ai artifact, Google Sheet, or this browser ---------- */
-async function startClaude() {
-  const [db, user, downloads] = await Promise.all(["db", "user", "downloads"].map(n => window.claude.use(n).catch(() => null)));
-  if (!db) return false;
-  Store.mode = "claude"; S.downloads = downloads;
-  let can = false; if (user) { try { can = (await user.can("data.write")) !== false; } catch (e) {} }
-  Store.me = can ? { role: "lead", name: "Map editor", chapters: [] } : { role: "viewer", name: "", chapters: [] };
-  Store.saveEvent = async ev => { const { id, ...rest } = ev; if (id && S.events.some(e => e.id === id)) { await db.collection("events").doc(id).update(rest); return id; } const nid = id || "ev" + Date.now().toString(36); await db.collection("events").doc(nid).set(rest); return nid; };
-  Store.deleteEvent = id => db.collection("events").doc(id).delete();
-  Store.reorder = async list => { for (const o of list) await db.collection("events").doc(o.id).update({ order: o.order }); };
-  Store.saveSite = s => db.collection("sites").doc(s.id).set(s);
-  Store.deleteSite = id => db.collection("sites").doc(id).delete();
-  Store.saveNote = (region, n) => db.collection("notes").doc(region).set(n);
-  Store.savePositions = p => db.doc("settings/layout").set({ positions: p });
-  Store.saveSetting = (key, value) => db.doc("settings/" + key).set({ value });
-  Store.act = async (a, p) => { const r = reduceAct(S, Store.me, a, p); if (r.doc) await db.collection(r.coll).doc(r.id).set(r.doc); else await db.collection(r.coll).doc(r.id).delete(); return { id: r.id }; };
-  ["dispatches", "calendar", "requests"].forEach(k => db.collection(k).onSnapshot(snap => { applyLists({ [k]: snap.docs.map(x => ({ id: x.id, ...x.data() })) }); renderMap({ fresh: false }); renderChrome(); }, () => {}));
-  let first = true;
-  db.collection("events").onSnapshot(snap => { applyData({ events: snap.docs.map(x => ({ id: x.id, ...x.data() })) }, first); first = false; }, err => toast("The story log couldn't load: " + (err?.message || "")));
-  db.collection("sites").onSnapshot(snap => { S.sites = Object.fromEntries(snap.docs.map(x => [x.id, { id: x.id, ...x.data() }])); renderRegionView({ fresh: false }); if (S.tab === "region") renderSide(); }, () => {});
-  db.collection("notes").onSnapshot(snap => { S.notes = Object.fromEntries(snap.docs.map(x => [x.id, x.data()])); if (S.tab === "region") renderSide(); }, () => {});
-  ["notice", "regions", "danger", "calendar", "turns"].forEach(key => db.doc("settings/" + key).onSnapshot(snap => { if (snap.exists) { setSettings({ ...S.settings, [key]: snap.data()?.value }); renderMap({ fresh: false }); renderChrome(); } }, () => {}));
-  db.doc("settings/layout").onSnapshot(snap => { if (drag && drag.mode === "city") return; S.positions = (snap.exists && snap.data()?.positions) || {}; renderMap({ fresh: false }); }, () => {});
-  return true;
-}
+/* ---------- Storage: Google Sheet, or this browser ---------- */
 function startSheets() {
   Store.mode = "sheets";
   let code = ""; try { code = localStorage.getItem("alwm.code") || ""; } catch (e) {}
@@ -1224,10 +1200,7 @@ if (["dispatches", "calendar", "overview", "log"].includes(PARAMS.get("tab"))) S
 refreshAll(true);
 $("layers").open = false;
 (async () => {
-  let ok = false;
-  if (window.claude && window.claude.use) { try { ok = await startClaude(); } catch (e) { ok = false; } }
-  if (!ok && CONFIG.apiUrl) { startSheets(); ok = true; }
-  if (!ok) startLocal();
+  if (CONFIG.apiUrl) startSheets(); else startLocal();
   afterAuth(false);
   const rg = PARAMS.get("region");
   if (rg && R[rg]) openRegion(rg, false);
