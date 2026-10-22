@@ -227,7 +227,7 @@ async function act(action, payload, done) {
   try { const res = await Store.act(action, clean(payload)); if (done) toast(done); return res || {}; }
   catch (e) { toast("Couldn't save: " + (e?.message || "try again")); return null; }
 }
-/* How the browser and claude.ai stores apply each action. The story sheet does the same in Code.gs, with permission checks. */
+/* How this browser's demo store applies each action. The story sheet does the same in Code.gs, with permission checks. */
 function reduceAct(lists, me, a, p) {
   const now = new Date().toISOString(), nid = pre => pre + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   const find = (k, id) => (lists[k] || []).find(x => x.id === id);
